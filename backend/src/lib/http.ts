@@ -57,6 +57,15 @@ export function errorHandler(
     res.status(err.status).json({ ok: false, code: err.code, error: err.message });
     return;
   }
+  const bodyError = err as { type?: string; status?: number };
+  if (bodyError.type === 'entity.too.large') {
+    res.status(413).json({ ok: false, code: 'TOO_LARGE', error: 'File is too large (max 5 MB)' });
+    return;
+  }
+  if (bodyError.type === 'entity.parse.failed') {
+    res.status(400).json({ ok: false, code: 'BAD_JSON', error: 'Invalid JSON body' });
+    return;
+  }
   logger.error({ err }, 'unhandled_error');
   res.status(500).json({ ok: false, code: 'INTERNAL', error: 'Something went wrong' });
 }

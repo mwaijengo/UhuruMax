@@ -5,6 +5,7 @@ import '../api/models.dart';
 import '../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/image_field.dart';
 
 const _categories = ['Mpira', 'Filamu', 'Tamthilia', 'Habari', 'Muziki', 'Katuni', 'Wanyama', 'Dini'];
 
@@ -211,17 +212,7 @@ class _ChannelFormState extends State<ChannelForm> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _image,
-                        validator: (v) => _url(v),
-                        keyboardType: TextInputType.url,
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(labelText: 'Image URL', prefixIcon: Icon(LucideIcons.image, size: 18)),
-                      ),
-                      if (_url(_image.text) == null && _image.text.trim().isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        AspectRatio(aspectRatio: 16 / 9, child: NetImage(_image.text.trim(), radius: 14)),
-                      ],
+                      ImageField(controller: _image, validator: (v) => _url(v)),
                       const SizedBox(height: 12),
                       Row(
                         children: [

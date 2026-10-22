@@ -10,6 +10,7 @@ import { logger } from './lib/logger';
 import { adminRouter } from './routes/admin';
 import { appRouter } from './routes/app';
 import { authRouter } from './routes/auth';
+import { mediaRouter } from './routes/media';
 import { webhookRouter } from './routes/webhooks';
 
 export function createApp(): express.Application {
@@ -63,6 +64,7 @@ export function createApp(): express.Application {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/app', appRouter);
   app.use('/api/v1/admin', adminRouter);
+  app.use('/api/v1/media', mediaRouter);
   app.use('/api/v1/webhooks', webhookRouter);
 
   app.use(notFound);

@@ -104,6 +104,15 @@ CREATE TABLE IF NOT EXISTS settings (
   value      JSONB       NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Images uploaded from the admin app (channel logos, carousel banners).
+CREATE TABLE IF NOT EXISTS media (
+  id         SERIAL PRIMARY KEY,
+  mime       TEXT        NOT NULL,
+  data       BYTEA       NOT NULL,
+  size_bytes INT         NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 const img = (id: string, w = 900, q = 80) =>

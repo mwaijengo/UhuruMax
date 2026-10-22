@@ -5,6 +5,7 @@ import '../api/models.dart';
 import '../state/session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/image_field.dart';
 
 class SlidesScreen extends StatefulWidget {
   const SlidesScreen({super.key});
@@ -197,16 +198,11 @@ class _SlideFormState extends State<_SlideForm> {
       shrinkWrap: true,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       children: [
-        TextField(
+        ImageField(
           controller: _image,
-          keyboardType: TextInputType.url,
-          onChanged: (_) => setState(() {}),
-          decoration: const InputDecoration(labelText: 'Image URL', prefixIcon: Icon(LucideIcons.image, size: 18)),
+          aspectRatio: 16 / 7,
+          onChanged: () => setState(() {}),
         ),
-        if (_validImage) ...[
-          const SizedBox(height: 10),
-          AspectRatio(aspectRatio: 16 / 7, child: NetImage(_image.text.trim(), radius: 14)),
-        ],
         const SizedBox(height: 12),
         TextField(
           controller: _title,

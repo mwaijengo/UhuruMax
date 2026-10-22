@@ -80,6 +80,11 @@ class ApiClient {
   Future<Map<String, dynamic>> delete(String path) =>
       _send(() => _http.delete(_uri(path), headers: _headers));
 
+  /// Uploads raw bytes (e.g. an image) with the given content type.
+  Future<Map<String, dynamic>> postBytes(String path, List<int> bytes, String contentType) => _send(
+    () => _http.post(_uri(path), headers: {..._headers, 'Content-Type': contentType}, body: bytes),
+  );
+
   Future<Map<String, dynamic>> _send(Future<http.Response> Function() request) async {
     http.Response res;
     try {

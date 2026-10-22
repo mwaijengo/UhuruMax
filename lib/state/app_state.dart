@@ -261,9 +261,26 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// True once channels and carousel came from the server (live or cached).
+  bool get hasServerCatalog => _hasServerCatalog;
+  bool _hasServerCatalog = false;
+
+  /// On a first launch, waits up to [timeout] for the server catalog so the
+  /// built-in demo channels are not shown.
+  Future<void> waitForCatalog({Duration timeout = const Duration(seconds: 7)}) {
+    if (api == null || _hasServerCatalog) return Future.value();
+    return sync(force: true).timeout(timeout, onTimeout: () {});
+  }
+
   void _applyBootstrap(Json res, {required bool fromCache}) {
-    final catalog = Catalog.fromJson(res);
-    if (catalog.plans.isNotEmpty) _catalog = catalog;
+    final server = Catalog.fromJson(res);
+    // Plans must never be empty: the payment screens need a recommended plan.
+    _catalog = Catalog(
+      plans: server.plans.isNotEmpty ? server.plans : _catalog.plans,
+      channels: server.channels,
+      slides: server.slides,
+    );
+    _hasServerCatalog = true;
     _config = RemoteConfig.fromJson((res['config'] as Map?)?.cast<String, dynamic>() ?? const {});
     if (!fromCache && res['user'] is Map) applyServerUser((res['user'] as Map).cast<String, dynamic>());
 
@@ -386,4 +403,7 @@ class AppScope extends InheritedNotifier<AppState> {
 
   static AppState read(BuildContext context) =>
       context.getInheritedWidgetOfExactType<AppScope>()!.notifier!;
+
+  static AppState? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<AppScope>()?.notifier;
 }

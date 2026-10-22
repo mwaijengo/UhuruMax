@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_restarter.dart';
 
@@ -32,7 +33,10 @@ class _SplashGateState extends State<SplashGate> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(_quick ? SplashGate.quickDuration : SplashGate.duration, () {
+    final minimum = Completer<void>();
+    _timer = Timer(_quick ? SplashGate.quickDuration : SplashGate.duration, minimum.complete);
+    final state = AppScope.maybeRead(context);
+    Future.wait([minimum.future, if (state != null) state.waitForCatalog()]).then((_) {
       if (mounted) setState(() => _visible = false);
     });
   }

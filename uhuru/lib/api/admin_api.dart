@@ -44,6 +44,12 @@ class AdminApi {
     return [for (final s in res['slides'] as List) Slide.fromJson(s as Json)];
   }
 
+  /// Stores an image on the server and returns its public URL.
+  Future<String> uploadImage(List<int> bytes, String contentType) async {
+    final res = await client.postBytes('/media', bytes, contentType);
+    return (res['media'] as Json)['url'] as String;
+  }
+
   Future<void> saveSlide(Slide s) => s.id == null
       ? client.post('/admin/slides', s.toJson())
       : client.put('/admin/slides/${s.id}', s.toJson());
