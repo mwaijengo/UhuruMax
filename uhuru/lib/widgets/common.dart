@@ -154,14 +154,14 @@ class Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? AppColors.surface,
+    return Material(
+      color: color ?? AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderColor ?? AppColors.line),
+        side: BorderSide(color: borderColor ?? AppColors.line),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }
