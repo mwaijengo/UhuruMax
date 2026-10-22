@@ -17,14 +17,13 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// Default server: the Android emulator reaches the host machine on 10.0.2.2.
+const productionServerUrl = 'https://uhurumax-production.up.railway.app';
+
+/// The live API on Railway. For the local API, run with
+/// `--dart-define=API_URL=http://10.0.2.2:8080` (Android emulator).
 String defaultServerUrl() {
   const fromEnv = String.fromEnvironment('API_URL');
-  if (fromEnv.isNotEmpty) return fromEnv;
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    return 'http://10.0.2.2:8080';
-  }
-  return 'http://localhost:8080';
+  return fromEnv.isNotEmpty ? fromEnv : productionServerUrl;
 }
 
 String normalizeServerUrl(String raw) {

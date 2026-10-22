@@ -14,7 +14,11 @@ class Session extends ChangeNotifier {
     : _prefs = prefs,
       client = client ?? ApiClient(baseUrl: defaultServerUrl()) {
     this.client.onUnauthorized = () => _end(expired: true);
-    this.client.baseUrl = normalizeServerUrl(_prefs.getString(_kServer) ?? defaultServerUrl());
+    // Older builds saved a server address (often the local one); always use the built-in one now.
+    if (_prefs.containsKey(_kServer)) {
+      _prefs.remove(_kServer);
+      _clearStored();
+    }
     final token = _prefs.getString(_kToken);
     final expires = DateTime.tryParse(_prefs.getString(_kExpires) ?? '');
     if (token != null && expires != null && expires.isAfter(DateTime.now())) {
@@ -49,12 +53,6 @@ class Session extends ChangeNotifier {
     final value = _expiredNotice;
     _expiredNotice = false;
     return value;
-  }
-
-  Future<void> setServerUrl(String raw) async {
-    client.baseUrl = normalizeServerUrl(raw);
-    await _prefs.setString(_kServer, client.baseUrl);
-    notifyListeners();
   }
 
   Future<void> login(String password) async {

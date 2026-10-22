@@ -14,15 +14,13 @@ Livestream app for live TV, football and movies, with an admin app and API.
 # API with an embedded Postgres (admin password: uhuru-admin)
 cd backend && npm install && npm run dev:local
 
-# User app (debug builds talk to http://localhost:8080, or 10.0.2.2 on the Android emulator)
-flutter run
-
-# Admin app
-cd uhuru && flutter run
+# Apps against the local API (Android emulator); without API_URL they use the live API
+flutter run --dart-define=API_URL=http://10.0.2.2:8080
+cd uhuru && flutter run --dart-define=API_URL=http://10.0.2.2:8080
 ```
 
 ## Production
 
 - **API:** set the variables from `backend/.env.example` on Railway (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_PASSWORD`, SonicPesa keys, `FCM_SERVICE_ACCOUNT_JSON`).
-- **Apps:** build with `--dart-define=API_URL=https://<your-api>.up.railway.app`.
+- **Apps:** both connect to `https://uhurumax-production.up.railway.app` by default; `--dart-define=API_URL=...` overrides it.
 - **Push (user app):** also pass `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_SENDER_ID` and `FIREBASE_PROJECT_ID` as `--dart-define`s.

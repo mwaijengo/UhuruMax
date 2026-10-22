@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,14 +19,13 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// Server address. Set with `--dart-define=API_URL=https://…` for release
-/// builds; debug builds default to the local API on the development machine.
-String? configuredApiUrl() {
+const productionApiUrl = 'https://uhurumax-production.up.railway.app';
+
+/// The live API on Railway. For the local API, run with
+/// `--dart-define=API_URL=http://10.0.2.2:8080` (Android emulator).
+String configuredApiUrl() {
   const fromEnv = String.fromEnvironment('API_URL');
-  if (fromEnv.isNotEmpty) return fromEnv;
-  if (kReleaseMode) return null;
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8080';
-  return 'http://localhost:8080';
+  return fromEnv.isNotEmpty ? fromEnv : productionApiUrl;
 }
 
 /// Talks to `/api/v1/app`. Every request after registration carries the

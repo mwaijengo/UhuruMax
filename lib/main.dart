@@ -27,15 +27,13 @@ Future<void> main() async {
   final platform = kIsWeb ? 'web' : defaultTargetPlatform.name;
   final state = await AppState.load(
     appVersion: version,
-    api: baseUrl == null
-        ? null
-        : (prefs, deviceId) => UhuruApi(
-            baseUrl: baseUrl,
-            deviceId: deviceId,
-            prefs: prefs,
-            appVersion: version,
-            platform: platform,
-          ),
+    api: (prefs, deviceId) => UhuruApi(
+      baseUrl: baseUrl,
+      deviceId: deviceId,
+      prefs: prefs,
+      appVersion: version,
+      platform: platform,
+    ),
   );
   runApp(UhuruMaxApp(state: state));
 
