@@ -48,8 +48,12 @@ const ANDROID = {
 
 export type PushResult = { recipients: number; delivered: number; failed: number; invalidTokens: string[] };
 
+const BATCH_SIZE = 500; // FCM multicast limit
+const PARALLEL_BATCHES = 10;
+
 /**
- * Sends to device tokens in batches of 500 (the FCM multicast limit).
+ * Sends to device tokens in batches of 500, several batches at a time so a
+ * large audience is reached together rather than one batch after another.
  * A message without [title] is data-only, e.g. a silent "refresh" command.
  */
 export async function sendToTokens(
@@ -61,22 +65,39 @@ export async function sendToTokens(
   if (unique.length === 0) return result;
   ensureApp();
 
-  for (let i = 0; i < unique.length; i += 500) {
-    const batch = unique.slice(i, i + 500);
-    const res = await getMessaging().sendEachForMulticast({
-      tokens: batch,
-      notification: message.title ? { title: message.title, body: message.body ?? '' } : undefined,
-      data: { source: 'uhuru_admin', ...(message.data ?? {}) },
-      android: message.title ? ANDROID : { priority: 'high' },
-    });
-    result.delivered += res.successCount;
-    result.failed += res.failureCount;
-    res.responses.forEach((r, idx) => {
-      const code = r.error?.code ?? '';
-      if (code.includes('registration-token-not-registered') || code.includes('invalid-argument')) {
-        result.invalidTokens.push(batch[idx]!);
-      }
-    });
+  const batches: string[][] = [];
+  for (let i = 0; i < unique.length; i += BATCH_SIZE) batches.push(unique.slice(i, i + BATCH_SIZE));
+
+  const sendBatch = async (batch: string[]) => {
+    try {
+      const res = await getMessaging().sendEachForMulticast({
+        tokens: batch,
+        notification: message.title ? { title: message.title, body: message.body ?? '' } : undefined,
+        data: { source: 'uhuru_admin', ...(message.data ?? {}) },
+        android: message.title ? ANDROID : { priority: 'high' },
+      });
+      result.delivered += res.successCount;
+      result.failed += res.failureCount;
+      res.responses.forEach((r, idx) => {
+        const code = r.error?.code ?? '';
+        if (code.includes('registration-token-not-registered') || code.includes('invalid-argument')) {
+          result.invalidTokens.push(batch[idx]!);
+        }
+      });
+    } catch (err) {
+      result.failed += batch.length;
+      firstError ??= err;
+      logger.error({ err, size: batch.length }, 'push_batch_failed');
+    }
+  };
+
+  let firstError: unknown;
+  for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
+    await Promise.all(batches.slice(i, i + PARALLEL_BATCHES).map(sendBatch));
+  }
+  if (result.delivered === 0 && firstError) {
+    const reason = firstError instanceof Error ? firstError.message : String(firstError);
+    throw new HttpError(502, `Firebase rejected the notification: ${reason}`, 'PUSH_FAILED');
   }
   logger.info({ ...result, invalidTokens: result.invalidTokens.length }, 'push_sent');
   return result;

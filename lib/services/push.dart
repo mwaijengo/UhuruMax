@@ -1,35 +1,50 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../state/app_state.dart';
 
-/// Firebase Cloud Messaging for admin notifications and "refresh apps".
+/// Firebase Cloud Messaging for admin notifications, renewal reminders and
+/// "refresh apps".
 ///
-/// Configured from `--dart-define`s so no google-services.json is needed:
-/// FIREBASE_API_KEY, FIREBASE_APP_ID, FIREBASE_SENDER_ID, FIREBASE_PROJECT_ID.
+/// Defaults to the `uhurumax-ceaf2` project (values from google-services.json,
+/// which are public client identifiers). Each can be overridden with a
+/// `--dart-define`: FIREBASE_API_KEY, FIREBASE_APP_ID, FIREBASE_SENDER_ID,
+/// FIREBASE_PROJECT_ID.
 class PushService {
   PushService._(this._state);
 
-  static const _apiKey = String.fromEnvironment('FIREBASE_API_KEY');
-  static const _appId = String.fromEnvironment('FIREBASE_APP_ID');
-  static const _senderId = String.fromEnvironment('FIREBASE_SENDER_ID');
-  static const _projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+  static const _apiKey = String.fromEnvironment(
+    'FIREBASE_API_KEY',
+    defaultValue: 'AIzaSyDKWtU7FUfKoGERt8cokOpxO-5HvPWVPuc',
+  );
+  static const _appId = String.fromEnvironment(
+    'FIREBASE_APP_ID',
+    defaultValue: '1:270201140107:android:88eaf4966577e913c6758e',
+  );
+  static const _senderId = String.fromEnvironment('FIREBASE_SENDER_ID', defaultValue: '270201140107');
+  static const _projectId = String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: 'uhurumax-ceaf2');
 
-  static bool get configured =>
-      !kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.android &&
-      _apiKey.isNotEmpty &&
-      _appId.isNotEmpty &&
-      _senderId.isNotEmpty &&
-      _projectId.isNotEmpty;
+  /// Must match the channel created in MainActivity and sent by the server.
+  static const _channel = AndroidNotificationDetails(
+    'uhurumax_alerts',
+    'Taarifa za UhuruMax',
+    channelDescription: 'Vifurushi, mechi na taarifa muhimu',
+    importance: Importance.high,
+    priority: Priority.high,
+    icon: 'ic_stat_uhurumax',
+  );
+
+  static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   final AppState _state;
+  final _local = FlutterLocalNotificationsPlugin();
   bool? _registeredFor;
 
-  /// Starts push if configured and the app is connected to the server.
+  /// Starts push when the app is connected to the server.
   static Future<PushService?> start(AppState state) async {
-    if (!configured || state.api == null) return null;
+    if (!supported || state.api == null) return null;
     try {
       await Firebase.initializeApp(
         options: const FirebaseOptions(
@@ -49,15 +64,37 @@ class PushService {
   }
 
   Future<void> _init() async {
+    await _local.initialize(
+      settings: const InitializationSettings(android: AndroidInitializationSettings('ic_stat_uhurumax')),
+      onDidReceiveNotificationResponse: (_) => _state.sync(force: true),
+    );
+
     final messaging = FirebaseMessaging.instance;
-    FirebaseMessaging.onMessage.listen(_onData);
+    FirebaseMessaging.onMessage.listen(_onForeground);
     FirebaseMessaging.onMessageOpenedApp.listen(_onData);
+    final initial = await messaging.getInitialMessage();
+    if (initial != null) _onData(initial);
     messaging.onTokenRefresh.listen((_) {
       _registeredFor = null;
       _sync();
     });
     _state.addListener(_sync);
     await _sync();
+  }
+
+  /// Android only draws notifications itself while the app is in the
+  /// background, so show them here when the app is open.
+  void _onForeground(RemoteMessage message) {
+    final n = message.notification;
+    if (n != null && _state.notifications) {
+      _local.show(
+        id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: n.title,
+        body: n.body,
+        notificationDetails: const NotificationDetails(android: _channel),
+      );
+    }
+    _onData(message);
   }
 
   void _onData(RemoteMessage message) {

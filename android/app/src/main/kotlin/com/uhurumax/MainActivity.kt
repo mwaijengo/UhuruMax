@@ -1,4 +1,4 @@
-package com.example.uhurumax
+package com.uhurumax
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

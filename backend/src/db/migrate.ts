@@ -113,6 +113,11 @@ CREATE TABLE IF NOT EXISTS media (
   size_bytes INT         NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Automatic renewal reminders: the expiry each user was last reminded about,
+-- so every package end triggers each reminder once.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reminded_expiring_for TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reminded_expired_for  TIMESTAMPTZ;
 `;
 
 const img = (id: string, w = 900, q = 80) =>

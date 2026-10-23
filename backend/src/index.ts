@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { closePool } from './db/pool';
 import { migrate } from './db/migrate';
 import { logger } from './lib/logger';
+import { runAutoReminders } from './services/notifications';
 
 export async function start(): Promise<void> {
   if (!env.jwtSecret || !env.adminPassword) {
@@ -20,7 +21,15 @@ export async function start(): Promise<void> {
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
+
+  const remind = () => {
+    runAutoReminders().catch((err) => logger.error({ err }, 'auto_reminders_failed'));
+  };
+  setTimeout(remind, 60_000).unref();
+  setInterval(remind, REMINDER_INTERVAL_MS).unref();
 }
+
+const REMINDER_INTERVAL_MS = 15 * 60_000;
 
 if (require.main === module) {
   start().catch((err) => {

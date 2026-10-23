@@ -1,6 +1,6 @@
 import { query } from '../db/pool';
 import { HttpError } from '../lib/http';
-import { sendToTokens, type PushResult } from './push';
+import { pushConfigured, sendToTokens, type PushResult } from './push';
 
 export const NOTIFICATION_TARGETS = ['all', 'premium', 'free', 'expired', 'expiring', 'user'] as const;
 export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
@@ -71,6 +71,45 @@ export const REMINDERS = {
     body: 'Ongezea siku za matumizi sasa kabla hujazimiwa huduma.',
   },
 };
+
+const AUTO_REMINDERS = {
+  expiring: {
+    column: 'reminded_expiring_for',
+    window: "expires_at > now() AND expires_at <= now() + interval '1 day'",
+  },
+  expired: {
+    column: 'reminded_expired_for',
+    window: "expires_at <= now() AND expires_at > now() - interval '2 days'",
+  },
+} as const;
+
+/**
+ * Reminds each user once when their package is about to end and once right
+ * after it ends. Users are claimed with a single UPDATE so overlapping runs
+ * never remind anyone twice.
+ */
+export async function runAutoReminders(): Promise<void> {
+  if (!pushConfigured()) return;
+  for (const kind of ['expiring', 'expired'] as const) {
+    const { column, window } = AUTO_REMINDERS[kind];
+    const rows = await query<{ fcm_token: string }>(
+      `UPDATE users SET ${column} = expires_at
+       WHERE fcm_token <> '' AND NOT blocked AND ${window} AND ${column} IS DISTINCT FROM expires_at
+       RETURNING fcm_token`,
+    );
+    if (rows.length === 0) continue;
+    const result = await sendToTokens(
+      rows.map((r) => r.fcm_token),
+      { ...REMINDERS[kind], data: { type: 'reminder' } },
+    );
+    await forgetTokens(result.invalidTokens);
+    await query(
+      `INSERT INTO notifications (title, body, target, recipients, delivered, failed)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [REMINDERS[kind].title, REMINDERS[kind].body, `auto:${kind}`, result.recipients, result.delivered, result.failed],
+    );
+  }
+}
 
 /** Silent push telling apps to reload; apps also notice on their next sync. */
 export async function pushRefreshCommand(): Promise<void> {

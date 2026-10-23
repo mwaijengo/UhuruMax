@@ -18,6 +18,8 @@ const _targets = [
 
 String _targetLabel(String target) {
   if (target.startsWith('user:')) return 'User #${target.substring(5)}';
+  if (target == 'auto:expiring') return 'Auto reminder • Ending soon';
+  if (target == 'auto:expired') return 'Auto reminder • Expired';
   return _targets.where((t) => t.$1 == target).firstOrNull?.$2 ?? target;
 }
 
@@ -127,7 +129,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'Remind expired users and users whose package ends within 3 days.',
+                    'Remind all expired users and users whose package ends within 3 days. '
+                    'Each user is also reminded automatically a day before and right after their package ends.',
                     style: uStyle(13, color: AppColors.muted, height: 1.4),
                   ),
                 ),

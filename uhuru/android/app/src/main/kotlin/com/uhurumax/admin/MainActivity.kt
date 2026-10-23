@@ -1,4 +1,4 @@
-package com.example.uhuru
+package com.uhurumax.admin
 
 import io.flutter.embedding.android.FlutterActivity
 
