@@ -8,6 +8,7 @@ import { logger } from '../lib/logger';
 import { requireAdmin } from '../middleware/auth';
 import {
   NOTIFICATION_TARGETS,
+  type NotificationTarget,
   pushRefreshCommand,
   REMINDERS,
   sendNotification,
@@ -575,6 +576,43 @@ adminRouter.post(
       })
       .parse(req.body);
     const result = await sendNotification(body);
+    res.json({ ok: true, result });
+  }),
+);
+
+adminRouter.delete(
+  '/notifications',
+  route(async (_req, res) => {
+    const rows = await query('DELETE FROM notifications RETURNING id');
+    logger.warn({ count: rows.length }, 'admin_notifications_cleared');
+    res.json({ ok: true, deleted: rows.length });
+  }),
+);
+
+/** Sends a past notification again to the same audience (re-evaluated now). */
+adminRouter.post(
+  '/notifications/:id/resend',
+  route(async (req, res) => {
+    const row = await queryOne<{ title: string; body: string; target: string }>(
+      'SELECT title, body, target FROM notifications WHERE id = $1',
+      [intParam(req, 'id')],
+    );
+    if (!row) throw new HttpError(404, 'Notification not found', 'NOT_FOUND');
+
+    let target: NotificationTarget;
+    let userId: number | undefined;
+    if (row.target.startsWith('user:')) {
+      target = 'user';
+      userId = Number(row.target.slice(5));
+    } else if (row.target.startsWith('auto:')) {
+      target = row.target.slice(5) as NotificationTarget;
+    } else {
+      target = row.target as NotificationTarget;
+    }
+    if (!NOTIFICATION_TARGETS.includes(target) || (target === 'user' && !userId)) {
+      throw new HttpError(400, 'This notification cannot be resent', 'BAD_TARGET');
+    }
+    const result = await sendNotification({ title: row.title, body: row.body, target, userId });
     res.json({ ok: true, result });
   }),
 );

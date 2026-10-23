@@ -37,6 +37,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   String _target = 'all';
   AppUser? _user;
   bool _busy = false;
+  final _resending = <int>{};
 
   @override
   void dispose() {
@@ -91,6 +92,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         toast(context, 'Expired: ${r.expired.delivered}/${r.expired.recipients} • Expiring: ${r.expiring.delivered}/${r.expiring.recipients}');
       }
     });
+    _listKey.currentState?.reload();
+  }
+
+  Future<void> _resend(NotificationLog n) async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Resend notification?',
+      message: '"${n.title}" will be sent again to: ${_targetLabel(n.target)}.',
+      confirmLabel: 'Resend',
+    );
+    if (!ok || !mounted) return;
+    final api = SessionScope.read(context).api;
+    setState(() => _resending.add(n.id));
+    await runAction(context, () async {
+      final r = await api.resendNotification(n.id);
+      if (mounted) toast(context, 'Delivered to ${r.delivered} of ${r.recipients} devices');
+    });
+    if (!mounted) return;
+    setState(() => _resending.remove(n.id));
+    _listKey.currentState?.reload();
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await confirmDialog(
+      context,
+      title: 'Clear all notifications?',
+      message: 'This deletes the whole sent history. Messages already on users\' phones are not affected.',
+      confirmLabel: 'Clear all',
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    final api = SessionScope.read(context).api;
+    await runAction(context, api.clearNotifications, success: 'History cleared');
     _listKey.currentState?.reload();
   }
 
@@ -200,7 +234,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ],
             ),
           ),
-          const SectionLabel('History'),
+          SectionLabel(
+            'History',
+            trailing: data.items.isEmpty
+                ? null
+                : TextButton.icon(
+                    onPressed: _clearAll,
+                    style: TextButton.styleFrom(foregroundColor: AppColors.red),
+                    icon: const Icon(LucideIcons.trash2, size: 15),
+                    label: const Text('Clear all'),
+                  ),
+          ),
           if (data.items.isEmpty)
             Text('Nothing sent yet', style: uStyle(13, color: AppColors.muted))
           else
@@ -210,6 +254,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   for (final n in data.items)
                     ListTile(
+                      contentPadding: const EdgeInsets.only(left: 16, right: 6),
                       title: Text(n.title, style: uStyle(14, weight: FontWeight.w700)),
                       subtitle: Text(
                         '${_targetLabel(n.target)} • ${timeAgo(n.createdAt)}${n.body.isEmpty ? '' : '\n${n.body}'}',
@@ -217,9 +262,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: uStyle(12, color: AppColors.muted, height: 1.35),
                       ),
-                      trailing: Text(
-                        '${n.delivered}/${n.recipients}',
-                        style: uStyle(13, weight: FontWeight.w800, color: n.delivered > 0 ? AppColors.green : AppColors.dim),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${n.delivered}/${n.recipients}',
+                            style: uStyle(13, weight: FontWeight.w800, color: n.delivered > 0 ? AppColors.green : AppColors.dim),
+                          ),
+                          _resending.contains(n.id)
+                              ? const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child: SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                                )
+                              : IconButton(
+                                  tooltip: 'Resend',
+                                  onPressed: () => _resend(n),
+                                  icon: const Icon(LucideIcons.rotateCw, size: 18, color: AppColors.green),
+                                ),
+                        ],
                       ),
                     ),
                 ],

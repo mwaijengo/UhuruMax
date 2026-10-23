@@ -365,6 +365,7 @@ class DashboardData {
 
 class NotificationLog {
   NotificationLog({
+    required this.id,
     required this.title,
     required this.body,
     required this.target,
@@ -375,6 +376,7 @@ class NotificationLog {
   });
 
   factory NotificationLog.fromJson(Json j) => NotificationLog(
+    id: _int(j['id']),
     title: _str(j['title']),
     body: _str(j['body']),
     target: _str(j['target']),
@@ -384,6 +386,7 @@ class NotificationLog {
     createdAt: _date(j['createdAt']),
   );
 
+  final int id;
   final String title;
   final String body;
   final String target;

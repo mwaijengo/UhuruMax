@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../state/app_state.dart';
@@ -41,6 +42,7 @@ class PushService {
   final AppState _state;
   final _local = FlutterLocalNotificationsPlugin();
   bool? _registeredFor;
+  DateTime _savedAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// Starts push when the app is connected to the server.
   static Future<PushService?> start(AppState state) async {
@@ -79,7 +81,16 @@ class PushService {
       _sync();
     });
     _state.addListener(_sync);
+    AppLifecycleListener(onResume: _refreshIfStale);
     await _sync();
+  }
+
+  /// Re-registers the token now and then so the server never keeps a stale
+  /// one for phones that stay in the background for days.
+  void _refreshIfStale() {
+    if (DateTime.now().difference(_savedAt) < const Duration(hours: 6)) return;
+    _registeredFor = null;
+    _sync();
   }
 
   /// Android only draws notifications itself while the app is in the
@@ -119,6 +130,7 @@ class PushService {
         }
       }
       await _state.api!.savePushToken(token);
+      _savedAt = DateTime.now();
     } catch (e) {
       _registeredFor = null;
       debugPrint('UhuruMax push token not saved: $e');

@@ -170,6 +170,13 @@ class AdminApi {
     return _push(res['result']);
   }
 
+  Future<PushSummary> resendNotification(int id) async {
+    final res = await client.post('/admin/notifications/$id/resend');
+    return _push(res['result']);
+  }
+
+  Future<void> clearNotifications() => client.delete('/admin/notifications');
+
   Future<({PushSummary expired, PushSummary expiring})> remindExpired() async {
     final res = await client.post('/admin/notifications/remind');
     return (expired: _push(res['expired']), expiring: _push(res['expiring']));

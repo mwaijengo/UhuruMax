@@ -16,7 +16,7 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    return Column(
+    final content = Column(
       children: [
         PageHeader(
           title: 'Dashboard',
@@ -64,7 +64,25 @@ class DashboardScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+              const SizedBox(height: 64),
             ],
+          ),
+        ),
+      ],
+    );
+    return Stack(
+      children: [
+        Positioned.fill(child: content),
+        Positioned(
+          right: 20,
+          bottom: 30,
+          child: FloatingActionButton(
+            heroTag: 'dashboard_send_notification',
+            tooltip: 'Send notification',
+            backgroundColor: AppColors.green,
+            foregroundColor: AppColors.bg,
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+            child: const Icon(LucideIcons.bellPlus, size: 24),
           ),
         ),
       ],

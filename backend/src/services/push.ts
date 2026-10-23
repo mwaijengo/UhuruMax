@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getMessaging } from 'firebase-admin/messaging';
+import { getMessaging, type AndroidConfig, type MulticastMessage } from 'firebase-admin/messaging';
 
 import { env } from '../config/env';
 import { HttpError } from '../lib/http';
@@ -40,20 +40,37 @@ function ensureApp(): void {
   });
 }
 
-const ANDROID = {
-  priority: 'high' as const,
-  ttl: 7 * 24 * 60 * 60 * 1000,
-  notification: { channelId: 'uhurumax_alerts', defaultSound: true },
+/** Firebase keeps undelivered messages up to 4 weeks for phones that are off or offline. */
+const MAX_TTL_MS = 28 * 24 * 60 * 60 * 1000;
+
+const ANDROID_ALERT: AndroidConfig = {
+  priority: 'high', // wakes phones from Doze / deep sleep
+  ttl: MAX_TTL_MS,
+  notification: {
+    channelId: 'uhurumax_alerts',
+    defaultSound: true,
+    defaultVibrateTimings: true,
+    priority: 'max',
+    visibility: 'public',
+  },
 };
+
+const ANDROID_SILENT: AndroidConfig = { priority: 'high', ttl: 60 * 60 * 1000 };
 
 export type PushResult = { recipients: number; delivered: number; failed: number; invalidTokens: string[] };
 
 const BATCH_SIZE = 500; // FCM multicast limit
-const PARALLEL_BATCHES = 10;
+const PARALLEL_BATCHES = 20;
+const RETRY_DELAY_MS = 2000;
+
+const DEAD_TOKEN_CODES = ['registration-token-not-registered', 'invalid-registration-token', 'invalid-argument'];
+const RETRYABLE_CODES = ['unavailable', 'internal-error', 'server-unavailable', 'unknown-error', 'message-rate-exceeded'];
+
+type Outcome = { delivered: number; dead: string[]; retry: string[]; error?: unknown };
 
 /**
- * Sends to device tokens in batches of 500, several batches at a time so a
- * large audience is reached together rather than one batch after another.
+ * Sends to device tokens in batches of 500, many batches at once so a large
+ * audience is reached together. Temporary Firebase errors are retried once.
  * A message without [title] is data-only, e.g. a silent "refresh" command.
  */
 export async function sendToTokens(
@@ -65,40 +82,64 @@ export async function sendToTokens(
   if (unique.length === 0) return result;
   ensureApp();
 
+  const payload = {
+    notification: message.title ? { title: message.title, body: message.body ?? '' } : undefined,
+    data: { source: 'uhuru_admin', ...(message.data ?? {}) },
+    android: message.title ? ANDROID_ALERT : ANDROID_SILENT,
+  };
+
+  const first = await sendAll(unique, payload);
+  let delivered = first.delivered;
+  const dead = [...first.dead];
+  let failedTokens = first.retry;
+
+  if (failedTokens.length > 0) {
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    const second = await sendAll(failedTokens, payload);
+    delivered += second.delivered;
+    dead.push(...second.dead);
+    failedTokens = second.retry;
+  }
+
+  result.delivered = delivered;
+  result.invalidTokens = dead;
+  result.failed = unique.length - delivered;
+
+  if (delivered === 0 && first.error) {
+    const reason = first.error instanceof Error ? first.error.message : String(first.error);
+    throw new HttpError(502, `Firebase rejected the notification: ${reason}`, 'PUSH_FAILED');
+  }
+  logger.info({ ...result, invalidTokens: dead.length, unresolved: failedTokens.length }, 'push_sent');
+  return result;
+}
+
+async function sendAll(
+  tokens: string[],
+  payload: Omit<MulticastMessage, 'tokens'>,
+): Promise<Outcome> {
+  const out: Outcome = { delivered: 0, dead: [], retry: [] };
   const batches: string[][] = [];
-  for (let i = 0; i < unique.length; i += BATCH_SIZE) batches.push(unique.slice(i, i + BATCH_SIZE));
+  for (let i = 0; i < tokens.length; i += BATCH_SIZE) batches.push(tokens.slice(i, i + BATCH_SIZE));
 
   const sendBatch = async (batch: string[]) => {
     try {
-      const res = await getMessaging().sendEachForMulticast({
-        tokens: batch,
-        notification: message.title ? { title: message.title, body: message.body ?? '' } : undefined,
-        data: { source: 'uhuru_admin', ...(message.data ?? {}) },
-        android: message.title ? ANDROID : { priority: 'high' },
-      });
-      result.delivered += res.successCount;
-      result.failed += res.failureCount;
+      const res = await getMessaging().sendEachForMulticast({ ...payload, tokens: batch });
+      out.delivered += res.successCount;
       res.responses.forEach((r, idx) => {
+        if (r.success) return;
         const code = r.error?.code ?? '';
-        if (code.includes('registration-token-not-registered') || code.includes('invalid-argument')) {
-          result.invalidTokens.push(batch[idx]!);
-        }
+        if (DEAD_TOKEN_CODES.some((c) => code.endsWith(c))) out.dead.push(batch[idx]!);
+        else if (RETRYABLE_CODES.some((c) => code.endsWith(c))) out.retry.push(batch[idx]!);
       });
     } catch (err) {
-      result.failed += batch.length;
-      firstError ??= err;
+      out.error ??= err;
+      out.retry.push(...batch);
       logger.error({ err, size: batch.length }, 'push_batch_failed');
     }
   };
 
-  let firstError: unknown;
   for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
     await Promise.all(batches.slice(i, i + PARALLEL_BATCHES).map(sendBatch));
   }
-  if (result.delivered === 0 && firstError) {
-    const reason = firstError instanceof Error ? firstError.message : String(firstError);
-    throw new HttpError(502, `Firebase rejected the notification: ${reason}`, 'PUSH_FAILED');
-  }
-  logger.info({ ...result, invalidTokens: result.invalidTokens.length }, 'push_sent');
-  return result;
+  return out;
 }
