@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:lucide_icons_flutter/lucide_icons_600.dart';
 
 import '../data/catalog.dart';
+import '../services/screen_guard.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_restarter.dart';
@@ -20,6 +21,8 @@ class AppShell extends StatefulWidget {
   @override
   State<AppShell> createState() => _AppShellState();
 }
+
+const _settingsTab = 3;
 
 class _AppShellState extends State<AppShell> {
   late final int _tab = AppRestarter.of(context).tab;
@@ -41,10 +44,12 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> _openPlan([Plan? plan]) async {
+    ScreenGuard.setSecure(true);
     await showPaymentSheet(
       context,
       plan ?? AppScope.read(context).catalog.recommendedPlan,
     );
+    if (mounted) ScreenGuard.setSecure(_tab != _settingsTab);
   }
 
   /// Every tab change restarts the app on that tab behind the quick splash.
@@ -59,7 +64,7 @@ class _AppShellState extends State<AppShell> {
     return switch (_tab) {
       1 => MalipoScreen(onSelectPlan: _openPlan),
       2 => SearchScreen(onPlay: _play),
-      3 => SettingsScreen(onSubscribe: _openPlan),
+      _settingsTab => SettingsScreen(onSubscribe: _openPlan),
       _ => HomeScreen(
         category: _category,
         onCategory: (value) => setState(() => _category = value),
@@ -68,6 +73,12 @@ class _AppShellState extends State<AppShell> {
         onSeeAll: () => _selectTab(2),
       ),
     };
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ScreenGuard.setSecure(_tab != _settingsTab);
   }
 
   @override
