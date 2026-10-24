@@ -1,8 +1,12 @@
 package com.uhurumax
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
+import android.view.Surface
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -11,6 +15,9 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
 import androidx.media3.exoplayer.drm.DrmSessionManager
@@ -20,14 +27,20 @@ import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.drm.LocalMediaDrmCallback
 import androidx.media3.exoplayer.drm.MediaDrmCallback
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.TextureRegistry
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLDecoder
 import java.util.concurrent.TimeUnit
 
 /** What the server's `/playback` endpoint returns, as sent from Dart. */
@@ -51,10 +64,11 @@ data class PlayerSource(
                 val key = map["key"]?.toString().orEmpty()
                 if (kid.isEmpty() || key.isEmpty()) null else kid to key
             }
+            val (url, urlHeaders) = splitUrlHeaders(args["url"]?.toString().orEmpty())
             return PlayerSource(
-                url = args["url"]?.toString().orEmpty(),
+                url = url,
                 streamType = args["streamType"]?.toString() ?: "auto",
-                headers = stringMap(args["headers"]),
+                headers = urlHeaders + stringMap(args["headers"]).mapKeys { canonicalHeader(it.key) },
                 drmType = drm["type"]?.toString() ?: "none",
                 licenseUrl = drm["licenseUrl"]?.toString().orEmpty(),
                 licenseHeaders = stringMap(drm["licenseHeaders"]),
@@ -68,6 +82,37 @@ data class PlayerSource(
             (value as? Map<*, *>).orEmpty()
                 .mapNotNull { (k, v) -> if (k == null || v == null) null else k.toString() to v.toString() }
                 .toMap()
+
+        /**
+         * IPTV-style links carry headers after a pipe:
+         * `http://host/live.m3u8|User-Agent=VLC/3.0&Referer=https://site/`.
+         * Headers set on the channel itself take priority over these.
+         */
+        fun splitUrlHeaders(raw: String): Pair<String, Map<String, String>> {
+            val trimmed = raw.trim()
+            val pipe = trimmed.indexOf('|')
+            if (pipe < 0) return trimmed to emptyMap()
+            val headers = trimmed.substring(pipe + 1).split('&').mapNotNull { part ->
+                val eq = part.indexOf('=')
+                if (eq <= 0) return@mapNotNull null
+                val name = decode(part.substring(0, eq)).trim()
+                val value = decode(part.substring(eq + 1)).trim()
+                if (name.isEmpty() || value.isEmpty()) null else canonicalHeader(name) to value
+            }.toMap()
+            return trimmed.substring(0, pipe).trim() to headers
+        }
+
+        private fun decode(value: String): String =
+            runCatching { URLDecoder.decode(value.replace("+", "%2B"), "UTF-8") }.getOrDefault(value)
+
+        fun canonicalHeader(name: String): String = when (name.trim().lowercase()) {
+            "user-agent", "useragent", "user_agent" -> "User-Agent"
+            "referer", "referrer" -> "Referer"
+            "origin" -> "Origin"
+            "cookie" -> "Cookie"
+            "authorization" -> "Authorization"
+            else -> name.trim()
+        }
     }
 }
 
@@ -83,8 +128,10 @@ class UhuruPlayerPlugin(
     private val channel = MethodChannel(messenger, "uhurumax/player")
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
             .build()
@@ -155,20 +202,73 @@ class UhuruPlayer(
     private var sink: EventChannel.EventSink? = null
     private val pending = ArrayList<Map<String, Any?>>()
     private val player: ExoPlayer
+    private val handler = Handler(Looper.getMainLooper())
+    private var autoRetries = 0
+    private var surfaceWidth = 0
+    private var surfaceHeight = 0
+    private var attachedSurface: Surface? = null
+    private var released = false
 
     init {
         val streamData = dataSource(http, source.headers)
-        val mediaSources = DefaultMediaSourceFactory(context).setDataSourceFactory(streamData)
+        val mediaSources = DefaultMediaSourceFactory(context)
+            .setDataSourceFactory(streamData)
+            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(LOAD_RETRIES))
         drmSessionManager(http)?.let { manager -> mediaSources.setDrmSessionManagerProvider { manager } }
 
-        player = ExoPlayer.Builder(context).setMediaSourceFactory(mediaSources).build()
+        val renderers = DefaultRenderersFactory(context)
+            .setEnableDecoderFallback(true)
+            .forceEnableMediaCodecAsynchronousQueueing()
+
+        // Live TV on mobile data: start quickly, then keep a deep buffer.
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(30_000, 90_000, 1_500, 3_000)
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(0, false)
+            .build()
+
+        // A cautious first guess avoids picking a quality the network cannot hold.
+        val bandwidth = DefaultBandwidthMeter.Builder(context)
+            .setInitialBitrateEstimate(1_200_000)
+            .build()
+        val trackSelector = DefaultTrackSelector(
+            context,
+            AdaptiveTrackSelection.Factory(
+                8_000,
+                20_000,
+                20_000,
+                0.7f,
+            ),
+        )
+
+        // After each stall, sit further behind the live edge so it does not repeat.
+        val liveSpeed = DefaultLivePlaybackSpeedControl.Builder()
+            .setTargetLiveOffsetIncrementOnRebufferMs(2_000)
+            .build()
+
+        player = ExoPlayer.Builder(context, renderers)
+            .setMediaSourceFactory(mediaSources)
+            .setLoadControl(loadControl)
+            .setBandwidthMeter(bandwidth)
+            .setTrackSelector(trackSelector)
+            .setLivePlaybackSpeedControl(liveSpeed)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true,
+            )
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .build()
         player.addListener(this)
         player.volume = if (source.muted) 0f else 1f
         applyMaxHeight(source.maxHeight)
 
         events.setStreamHandler(this)
         producer.setCallback(this)
-        player.setVideoSurface(producer.surface)
+        attachSurface()
 
         player.setMediaItem(mediaItem())
         player.playWhenReady = true
@@ -244,6 +344,13 @@ class UhuruPlayer(
     fun setMaxHeight(maxHeight: Int) = applyMaxHeight(maxHeight)
 
     fun retry() {
+        handler.removeCallbacksAndMessages(null)
+        autoRetries = 0
+        restart()
+    }
+
+    private fun restart() {
+        if (released) return
         player.seekToDefaultPosition()
         player.prepare()
         player.play()
@@ -256,31 +363,59 @@ class UhuruPlayer(
     }
 
     fun release() {
+        released = true
+        handler.removeCallbacksAndMessages(null)
         events.setStreamHandler(null)
         sink = null
         player.removeListener(this)
         player.release()
         producer.setCallback(null)
         producer.release()
+        attachedSurface = null
+    }
+
+    /** Only hands ExoPlayer a new surface when Flutter actually replaced it. */
+    private fun attachSurface() {
+        val surface = producer.surface
+        if (surface === attachedSurface) return
+        attachedSurface = surface
+        player.setVideoSurface(surface)
     }
 
     // Player.Listener
 
-    override fun onPlaybackStateChanged(playbackState: Int) = sendState()
+    override fun onPlaybackStateChanged(playbackState: Int) {
+        if (playbackState == Player.STATE_READY) autoRetries = 0
+        sendState()
+    }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) = sendState()
 
+    /**
+     * Adaptive streams change resolution often. Resizing (and so replacing) the
+     * surface each time stalls the decoder, so the surface only ever grows.
+     */
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         if (videoSize.width == 0 || videoSize.height == 0) return
+        if (videoSize.width > surfaceWidth || videoSize.height > surfaceHeight) {
+            surfaceWidth = maxOf(surfaceWidth, videoSize.width)
+            surfaceHeight = maxOf(surfaceHeight, videoSize.height)
+            producer.setSize(surfaceWidth, surfaceHeight)
+            attachSurface()
+        }
         val width = (videoSize.width * videoSize.pixelWidthHeightRatio).toInt()
-        producer.setSize(videoSize.width, videoSize.height)
-        player.setVideoSurface(producer.surface)
         send(mapOf("event" to "size", "width" to width, "height" to videoSize.height))
     }
 
     override fun onPlayerError(error: PlaybackException) {
         if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
-            retry()
+            restart()
+            return
+        }
+        if (error.errorCode in RECOVERABLE && autoRetries < AUTO_RETRIES) {
+            autoRetries++
+            sendState()
+            handler.postDelayed({ restart() }, 1_500L * autoRetries)
             return
         }
         send(
@@ -306,10 +441,12 @@ class UhuruPlayer(
     // SurfaceProducer.Callback: the surface is torn down when the app is backgrounded.
 
     override fun onSurfaceAvailable() {
-        player.setVideoSurface(producer.surface)
+        if (surfaceWidth > 0) producer.setSize(surfaceWidth, surfaceHeight)
+        attachSurface()
     }
 
     override fun onSurfaceCleanup() {
+        attachedSurface = null
         player.setVideoSurface(null)
     }
 
@@ -331,6 +468,19 @@ class UhuruPlayer(
     }
 
     companion object {
+        private const val LOAD_RETRIES = 6
+        private const val AUTO_RETRIES = 3
+
+        private val RECOVERABLE = setOf(
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+            PlaybackException.ERROR_CODE_TIMEOUT,
+            PlaybackException.ERROR_CODE_DECODING_FAILED,
+            PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+        )
+
         /** Widevine L1 needs a secure surface, which a Flutter texture is not. */
         private val mediaDrmProvider = ExoMediaDrm.Provider { uuid ->
             val drm = FrameworkMediaDrm.newInstance(uuid)

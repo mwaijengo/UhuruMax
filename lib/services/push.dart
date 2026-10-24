@@ -43,6 +43,7 @@ class PushService {
   final _local = FlutterLocalNotificationsPlugin();
   bool? _registeredFor;
   DateTime _savedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  Future<void> _queue = Future.value();
 
   /// Starts push when the app is connected to the server.
   static Future<PushService?> start(AppState state) async {
@@ -116,8 +117,11 @@ class PushService {
     }
   }
 
+  /// Runs one sync at a time; Android rejects overlapping permission requests.
+  Future<void> _sync() => _queue = _queue.then((_) => _syncNow());
+
   /// Sends the token while notifications are on, and clears it when off.
-  Future<void> _sync() async {
+  Future<void> _syncNow() async {
     final wanted = _state.notifications;
     if (_registeredFor == wanted) return;
     _registeredFor = wanted;

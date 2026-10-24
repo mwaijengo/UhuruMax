@@ -16,6 +16,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(AppTheme.overlayStyle);
+  // Only the player may rotate to landscape.
+  SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
 
   var version = '1.0.0';
   try {

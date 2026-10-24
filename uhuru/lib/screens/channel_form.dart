@@ -265,6 +265,8 @@ class _ChannelFormState extends State<ChannelForm> {
                         decoration: const InputDecoration(
                           labelText: 'Stream URL',
                           hintText: 'https://…/index.m3u8 or …/manifest.mpd',
+                          helperText: 'Headers can also follow the link: …m3u8|User-Agent=VLC&Referer=https://site/',
+                          helperMaxLines: 2,
                           prefixIcon: Icon(LucideIcons.link, size: 18),
                         ),
                       ),
