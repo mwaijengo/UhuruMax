@@ -181,7 +181,7 @@ class _CurrentPlanCard extends StatelessWidget {
               begin: Alignment(-0.7, -1),
               end: Alignment(0.7, 1),
               stops: [0, 0.6],
-              colors: [Color(0xFF182010), Color(0xFF101513)],
+              colors: [Color(0xFF182010), AppColors.surface],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

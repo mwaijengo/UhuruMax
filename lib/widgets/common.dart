@@ -30,6 +30,7 @@ class NetImage extends StatelessWidget {
       fit: fit,
       width: double.infinity,
       height: double.infinity,
+      filterQuality: FilterQuality.high,
       fadeInDuration: const Duration(milliseconds: 250),
       placeholder: (_, _) => const ColoredBox(color: AppColors.surface2),
       errorWidget: (_, _, _) => const ColoredBox(
@@ -617,50 +618,33 @@ class _ChannelCardState extends State<ChannelCard> {
         children: [
           AspectRatio(
             aspectRatio: 0.76,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  AnimatedScale(
-                    scale: _pressed ? 1.04 : 1,
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOut,
-                    child: NetImage(channel.image),
-                  ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x0F000000), Color(0x73000000)],
-                      ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              foregroundDecoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _pressed ? AppColors.green : AppColors.cardBorder,
+                  width: 1.4,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    AnimatedScale(
+                      scale: _pressed ? 1.04 : 1,
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      child: NetImage(channel.image),
                     ),
-                  ),
-                  Positioned(
-                    top: 9,
-                    left: 9,
-                    right: 9,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: _Pill(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const LiveDot(size: 5, ring: false),
-                                  const SizedBox(width: 4),
-                                  Text('MUBASHARA', style: pillStyle),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (channel.premium) ...[
-                          const SizedBox(width: 6),
+                    Positioned(
+                      top: 9,
+                      left: 9,
+                      right: 9,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           Flexible(
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
@@ -668,47 +652,65 @@ class _ChannelCardState extends State<ChannelCard> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      LucideIcons.crown,
-                                      size: 12,
-                                      color: AppColors.green,
-                                    ),
+                                    const LiveDot(size: 5, ring: false),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      'MALIPO',
-                                      style: pillStyle.copyWith(
-                                        color: AppColors.green,
-                                      ),
-                                    ),
+                                    Text('MUBASHARA', style: pillStyle),
                                   ],
                                 ),
                               ),
                             ),
                           ),
+                          if (channel.premium) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: _Pill(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        LucideIcons.crown,
+                                        size: 12,
+                                        color: AppColors.green,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'MALIPO',
+                                        style: pillStyle.copyWith(
+                                          color: AppColors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  Center(
-                    child: AnimatedOpacity(
-                      opacity: _pressed ? 1 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color(0xB8080C0A),
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          size: 22,
-                          color: AppColors.text,
+                    Center(
+                      child: AnimatedOpacity(
+                        opacity: _pressed ? 1 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xB8080C0A),
+                          ),
+                          child: const Icon(
+                            Icons.play_arrow_rounded,
+                            size: 22,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

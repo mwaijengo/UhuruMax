@@ -299,18 +299,6 @@ class _HeroSlide extends StatelessWidget {
           label: slide.title,
           child: GestureDetector(onTap: onTap, child: NetImage(slide.image)),
         ),
-        const IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: [0.05, 0.32, 1],
-                colors: [Color(0x0A050807), Color(0x2E050807), AppColors.bg],
-              ),
-            ),
-          ),
-        ),
         Positioned(
           left: 22,
           bottom: 34,
@@ -498,8 +486,8 @@ class _UpgradeCardState extends State<_UpgradeCard> {
           begin: const Alignment(-0.9, -1),
           end: const Alignment(0.9, 1),
           colors: warning
-              ? const [Color(0xFF231412), Color(0xFF101613)]
-              : const [Color(0xFF17210F), Color(0xFF101613)],
+              ? const [Color(0xFF231412), AppColors.surface]
+              : const [Color(0xFF17210F), AppColors.surface],
         ),
       ),
       child: Row(

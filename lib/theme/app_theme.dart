@@ -5,12 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   AppColors._();
 
-  static const bg = Color(0xFF090D0C);
-  static const backdrop = Color(0xFF050706);
-  static const surface = Color(0xFF101514);
-  static const surface2 = Color(0xFF171D1B);
-  static const sheet = Color(0xFF111615);
+  static const bg = Color(0xFF0F1C2E);
+  static const backdrop = Color(0xFF0A1422);
+  static const surface = Color(0xFF16253A);
+  static const surface2 = Color(0xFF1D2E46);
+  static const sheet = Color(0xFF152338);
+  static const navBar = Color(0xFF122135);
   static const line = Color(0x14FFFFFF);
+  static const cardBorder = Color(0x6680B4FF);
   static const muted = Color(0xFF8D9794);
   static const dim = Color(0xFF68716E);
   static const faint = Color(0xFF515956);
@@ -21,7 +23,7 @@ class AppColors {
   static const text = Color(0xFFF6F7F8);
   static const red = Color(0xFFFF493F);
   static const error = Color(0xFFFF837B);
-  static const toggleOff = Color(0xFF303734);
+  static const toggleOff = Color(0xFF2E3D52);
   static const toggleKnobOff = Color(0xFF8D9693);
 
   static Color greenA(double alpha) => green.withValues(alpha: alpha);
@@ -34,7 +36,7 @@ class AppTheme {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
     statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: Color(0xFF0D1211),
+    systemNavigationBarColor: AppColors.navBar,
     systemNavigationBarIconBrightness: Brightness.light,
   );
 
