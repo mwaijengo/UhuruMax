@@ -612,7 +612,10 @@ class _ChannelCardState extends State<ChannelCard> {
     return Pressable(
       onTap: widget.onPlay,
       semanticLabel: 'Tazama ${channel.name}',
-      onHighlightChanged: (value) => setState(() => _pressed = value),
+      onHighlightChanged: (value) {
+        if (value) AppScope.read(context).prefetchPlayback(channel);
+        setState(() => _pressed = value);
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

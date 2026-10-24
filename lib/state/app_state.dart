@@ -223,6 +223,13 @@ class AppState extends ChangeNotifier {
 
   bool canWatch(Channel channel) => !channel.premium || isSubscribed;
 
+  /// Starts fetching stream details as soon as a finger touches a channel.
+  void prefetchPlayback(Channel channel) {
+    final id = channel.id;
+    if (api == null || id == null || !canWatch(channel)) return;
+    api!.playback(id).ignore();
+  }
+
   // ───────────────────────── Server sync ─────────────────────────
 
   /// Fetches catalog, subscription and admin config. Calls within [minGap]

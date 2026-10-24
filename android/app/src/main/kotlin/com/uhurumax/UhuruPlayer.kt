@@ -222,14 +222,14 @@ class UhuruPlayer(
 
         // Live TV on mobile data: start quickly, then keep a deep buffer.
         val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(30_000, 90_000, 1_500, 3_000)
+            .setBufferDurationsMs(30_000, 90_000, 1_000, 2_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .setBackBuffer(0, false)
             .build()
 
         // A cautious first guess avoids picking a quality the network cannot hold.
         val bandwidth = DefaultBandwidthMeter.Builder(context)
-            .setInitialBitrateEstimate(1_200_000)
+            .setInitialBitrateEstimate(1_000_000)
             .build()
         val trackSelector = DefaultTrackSelector(
             context,
@@ -268,6 +268,10 @@ class UhuruPlayer(
 
         events.setStreamHandler(this)
         producer.setCallback(this)
+        // Sized up front so the first frame (720p or less) needs no new surface.
+        surfaceWidth = 1280
+        surfaceHeight = 720
+        producer.setSize(surfaceWidth, surfaceHeight)
         attachSurface()
 
         player.setMediaItem(mediaItem())
@@ -441,7 +445,7 @@ class UhuruPlayer(
     // SurfaceProducer.Callback: the surface is torn down when the app is backgrounded.
 
     override fun onSurfaceAvailable() {
-        if (surfaceWidth > 0) producer.setSize(surfaceWidth, surfaceHeight)
+        producer.setSize(surfaceWidth, surfaceHeight)
         attachSurface()
     }
 

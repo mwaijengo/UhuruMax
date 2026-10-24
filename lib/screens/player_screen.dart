@@ -114,7 +114,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
   }
 
-  Future<void> _open() async {
+  /// [fresh] skips the cached stream details, e.g. after a playback error.
+  Future<void> _open({bool fresh = false}) async {
     _closePlayer();
     setState(() {
       _loading = true;
@@ -123,7 +124,10 @@ class _PlayerScreenState extends State<PlayerScreen>
       _aspectRatio = null;
     });
     try {
-      final playback = await _settings.api!.playback(widget.channel.id!);
+      final playback = await _settings.api!.playback(
+        widget.channel.id!,
+        fresh: fresh,
+      );
       if (!mounted) return;
       final player = await NativePlayer.open(
         playback,
@@ -182,12 +186,12 @@ class _PlayerScreenState extends State<PlayerScreen>
   }
 
   Future<void> _onErrorAction() async {
-    if (!_needsPayment) return _open();
+    if (!_needsPayment) return _open(fresh: true);
     final activated = await showPaymentSheet(
       context,
       _settings.catalog.recommendedPlan,
     );
-    if (activated && mounted) _open();
+    if (activated && mounted) _open(fresh: true);
   }
 
   void _scheduleHide() {

@@ -82,8 +82,23 @@ class UhuruApi {
 
   Future<void> savePushToken(String token) => _authed('POST', '/app/push-token', {'token': token});
 
-  Future<Json> playback(int channelId) async =>
-      (await _authed('GET', '/app/channels/$channelId/playback'))['playback'] as Json;
+  static const _playbackTtl = Duration(minutes: 3);
+  final _playback = <int, ({DateTime at, Future<Json> data})>{};
+
+  /// Cached briefly (including in-flight requests) so a prefetch on touch, or
+  /// reopening a channel, starts the stream without another round trip.
+  Future<Json> playback(int channelId, {bool fresh = false}) {
+    final hit = _playback[channelId];
+    if (!fresh && hit != null && DateTime.now().difference(hit.at) < _playbackTtl) return hit.data;
+    final data = _authed('GET', '/app/channels/$channelId/playback').then((res) => res['playback'] as Json);
+    final entry = (at: DateTime.now(), data: data);
+    _playback[channelId] = entry;
+    data.catchError((Object _) {
+      if (identical(_playback[channelId], entry)) _playback.remove(channelId);
+      return <String, dynamic>{};
+    });
+    return data;
+  }
 
   Future<Json> startPayment({required String planId, required String name, required String phone}) async =>
       (await _authed('POST', '/app/payments', {'planId': planId, 'name': name, 'phone': phone}))['payment']
