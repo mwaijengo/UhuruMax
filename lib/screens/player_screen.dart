@@ -268,15 +268,9 @@ class _PlayerScreenState extends State<PlayerScreen>
             children: [
               if (_player != null && _aspectRatio != null)
                 isLandscape && _fill
-                    ? ClipRect(
-                        child: FittedBox(
-                          fit: BoxFit.cover,
-                          child: SizedBox(
-                            width: _aspectRatio! * 1000,
-                            height: 1000,
-                            child: Texture(textureId: _player!.textureId),
-                          ),
-                        ),
+                    // Stretches to every edge so nothing is cropped.
+                    ? SizedBox.expand(
+                        child: Texture(textureId: _player!.textureId),
                       )
                     : Center(
                         child: AspectRatio(
