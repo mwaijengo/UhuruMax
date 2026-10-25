@@ -72,7 +72,7 @@ h1 { margin: 0; font-size: 34px; line-height: 1.15; letter-spacing: -0.6px; font
 .stats strong { font-size: 15px; font-weight: 800; }
 .stats span { font-size: 12px; color: var(--muted); }
 
-.hero-actions { display: grid; gap: 10px; justify-items: stretch; min-width: 230px; }
+.hero-actions { display: grid; gap: 10px; justify-items: stretch; width: 300px; }
 .btn-install {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   height: 48px; padding: 0 28px;
@@ -204,7 +204,7 @@ h1 { margin: 0; font-size: 34px; line-height: 1.15; letter-spacing: -0.6px; font
     grid-template-areas: "icon text" "stats stats" "actions actions";
   }
   .hero-text { align-self: center; }
-  .hero-actions { min-width: 0; }
+  .hero-actions { width: auto; }
 }
 @media (max-width: 560px) {
   .topnav { display: none; }
