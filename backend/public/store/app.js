@@ -66,6 +66,18 @@
     }),
   );
 
+  // Tap a screenshot to view it full size.
+  const lightbox = $('[data-lightbox]');
+  const lightboxImg = lightbox.querySelector('img');
+  $$('.shot img').forEach((img) =>
+    img.addEventListener('click', () => {
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      lightbox.showModal();
+    }),
+  );
+  lightbox.addEventListener('click', () => lightbox.close());
+
   // Share the store link.
   const toast = $('[data-toast]');
   let toastTimer;

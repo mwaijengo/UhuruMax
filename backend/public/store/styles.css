@@ -100,6 +100,18 @@ h1 { margin: 0; font-size: 34px; line-height: 1.15; letter-spacing: -0.6px; font
 
 /* Screenshots */
 .shots { margin: 6px 0 28px; }
+.shots-title { margin: 0 0 12px; font-size: 20px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.shots-title span { font-size: 13px; font-weight: 500; color: var(--muted); }
+.shot img { cursor: zoom-in; transition: transform 0.15s ease; }
+.shot img:hover { transform: translateY(-3px); }
+.lightbox { border: 0; padding: 0; background: transparent; max-width: none; max-height: none; overflow: visible; }
+.lightbox::backdrop { background: rgba(10, 18, 30, 0.88); }
+.lightbox img { height: min(88vh, 900px); width: auto; aspect-ratio: 9 / 20; max-width: 92vw; object-fit: contain; border-radius: 22px; cursor: zoom-out; }
+.lightbox-close {
+  position: fixed; top: 14px; right: 14px;
+  width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 28px; line-height: 1; cursor: pointer;
+}
 .shots-track {
   display: flex; gap: 14px;
   overflow-x: auto; scroll-snap-type: x mandatory;

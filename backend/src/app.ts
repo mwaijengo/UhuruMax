@@ -66,7 +66,10 @@ export function createApp(): express.Application {
       },
     }),
   );
-  app.use(express.static(join(PUBLIC_DIR, 'store'), { maxAge: '10m' }));
+  // Revalidate on every visit so store updates show up immediately.
+  app.use(express.static(join(PUBLIC_DIR, 'store'), {
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+  }));
 
   app.get('/api/v1/health', async (_req, res) => {
     try {
