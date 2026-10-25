@@ -21,9 +21,6 @@ class HomeScreen extends StatelessWidget {
     required this.onSeeAll,
   });
 
-  /// Channels shown under "Zote"; the full list lives on the Tafuta tab.
-  static const _previewCount = 4;
-
   final String category;
   final ValueChanged<String> onCategory;
   final ValueChanged<Channel> onPlay;
@@ -34,7 +31,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final channels = AppScope.of(context).catalog.channels;
     final filtered = category == allCategory
-        ? channels.take(_previewCount).toList()
+        ? channels
         : channels.where((c) => c.category == category).toList();
 
     return RefreshIndicator(
@@ -100,7 +97,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   SectionHeading(
                     title: category == allCategory
-                        ? 'Zinazovuma sasa'
+                        ? 'Chaneli zote'
                         : category,
                     trailing: const OnAirLabel(),
                   ),

@@ -1,12 +1,12 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-10-25T04:22:04.081Z",
+  "updatedAt": "2026-10-25T04:54:10.433Z",
   "minAndroid": "7.0",
   "notes": [
+    "Chaneli zote sasa zinaonekana kwenye Zote",
     "Kicheza video kipya: kinaanza haraka na hakikwami",
     "Skrini nzima ya mlalo bila nafasi pembeni",
-    "Arifa za mechi na vifurushi zinafika haraka zaidi",
-    "Muonekano mpya wenye rangi ya bluu na nembo mpya"
+    "Arifa za mechi na vifurushi zinafika haraka zaidi"
   ],
   "files": {
     "arm64": {
