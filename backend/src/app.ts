@@ -1,3 +1,5 @@
+import { basename, join, resolve } from 'node:path';
+
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -12,6 +14,9 @@ import { appRouter } from './routes/app';
 import { authRouter } from './routes/auth';
 import { mediaRouter } from './routes/media';
 import { webhookRouter } from './routes/webhooks';
+
+/** `backend/public`, from both `src/` (dev) and `dist/` (production). */
+const PUBLIC_DIR = resolve(__dirname, '..', 'public');
 
 export function createApp(): express.Application {
   const app = express();
@@ -49,9 +54,20 @@ export function createApp(): express.Application {
     }),
   );
 
-  app.get('/', (_req, res) => {
-    res.json({ ok: true, name: 'uhurumax-api' });
-  });
+  // UhuruStore: the download website and the APK files.
+  app.use(
+    '/downloads',
+    express.static(join(PUBLIC_DIR, 'downloads'), {
+      maxAge: '5m',
+      setHeaders: (res, file) => {
+        if (!file.endsWith('.apk')) return;
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        res.setHeader('Content-Disposition', `attachment; filename="${basename(file)}"`);
+      },
+    }),
+  );
+  app.use(express.static(join(PUBLIC_DIR, 'store'), { maxAge: '10m' }));
+
   app.get('/api/v1/health', async (_req, res) => {
     try {
       await getPool().query('SELECT 1');

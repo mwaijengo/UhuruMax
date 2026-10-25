@@ -12,7 +12,8 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "dev:local": "ts-node-dev --transpile-only src/dev/localServer.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "store:publish": "node scripts/publish-apk.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

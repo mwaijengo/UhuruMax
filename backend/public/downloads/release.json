@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-10-25T04:22:04.081Z",
+  "minAndroid": "7.0",
+  "notes": [
+    "Kicheza video kipya: kinaanza haraka na hakikwami",
+    "Skrini nzima ya mlalo bila nafasi pembeni",
+    "Arifa za mechi na vifurushi zinafika haraka zaidi",
+    "Muonekano mpya wenye rangi ya bluu na nembo mpya"
+  ],
+  "files": {
+    "arm64": {
+      "file": "/downloads/UhuruMax.apk",
+      "sizeBytes": 21945516
+    },
+    "armv7": {
+      "file": "/downloads/UhuruMax-armv7.apk",
+      "sizeBytes": 19370616
+    }
+  }
+}
