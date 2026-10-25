@@ -31,16 +31,16 @@
       $$('[data-download]').forEach((a) => { a.href = main.file; });
       setText('[data-size]', mb(main.sizeBytes));
     }
-    if (alt) $('[data-download-alt]').href = alt.file;
+    $$('[data-download-alt]').forEach((a) => { if (alt) a.href = alt.file; });
     setText('[data-version]', release.version ?? '—');
     setText('[data-date]', date(release.updatedAt));
 
     const notes = release.notes ?? [];
-    if (notes.length) {
-      const list = $('[data-notes]');
+    const list = $('[data-notes]');
+    if (notes.length && list) {
       list.replaceChildren(...notes.map((n) => Object.assign(document.createElement('li'), { textContent: n })));
-      $('[data-updated]').textContent = `Imesasishwa ${date(release.updatedAt)}`;
-      $('[data-whats-new]').hidden = false;
+      setText('[data-updated]', `Imesasishwa ${date(release.updatedAt)}`);
+      $$('[data-whats-new]').forEach((el) => { el.hidden = false; });
     }
   };
 
