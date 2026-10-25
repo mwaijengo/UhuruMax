@@ -54,7 +54,7 @@
     note.textContent = 'UhuruMax ni kwa simu za Android tu kwa sasa.';
     note.classList.add('warn');
   } else if (!isAndroid) {
-    note.textContent = 'Fungua ukurasa huu kwenye simu yako ya Android ili kusakinisha.';
+    note.textContent = 'Fungua ukurasa huu kwenye simu yako ya Android ili kuinstall.';
   }
 
   // Install help after the download starts.
