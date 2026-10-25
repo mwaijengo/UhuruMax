@@ -131,6 +131,14 @@ h1 { margin: 0; font-size: 34px; line-height: 1.15; letter-spacing: -0.6px; font
   box-shadow: 0 4px 16px rgba(15, 28, 46, 0.16);
 }
 .shot figcaption { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--text); text-align: center; }
+.guide { padding-top: 22px; border-top: 1px solid var(--line); }
+.step figcaption { display: flex; gap: 8px; align-items: flex-start; text-align: left; font-weight: 500; line-height: 1.35; }
+.step figcaption b {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--green); color: #fff; font-size: 12px; font-weight: 800;
+}
+.step figcaption strong { font-weight: 800; }
 
 /* Content */
 .columns { display: grid; grid-template-columns: 1fr 330px; gap: 22px; align-items: start; padding-bottom: 60px; }
