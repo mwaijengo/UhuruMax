@@ -204,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       SwitchRow(
                         title: _maintenance ? 'Maintenance is ON' : 'Maintenance is off',
-                        subtitle: 'Blocks the user app with a message while you fix things',
+                        subtitle: 'Zuia app muda wa matengenezo, mtumiaji hawezi kutUMIA app',
                         value: _maintenance,
                         onChanged: _savingSection != null ? null : _saveMaintenance,
                       ),
@@ -254,7 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       SwitchRow(
                         title: 'Must update',
                         subtitle: 'Older than the minimum version: app is blocked until updated. '
-                            'Otherwise users get a dismissible prompt.',
+                            'Otherwise users hawatoweza kutumia app.',
                         value: _force,
                         onChanged: (v) => setState(() => _force = v),
                       ),
@@ -356,8 +356,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Ends every active package immediately and moves all users to free. '
-                        'Use only for emergencies such as a payment fraud wave.',
+                        'Chomoa betri kwa watumiaji wote '
+                        'watumiaji wote wataondolewa premium.',
                         style: uStyle(13, color: AppColors.muted, height: 1.4),
                       ),
                       const SizedBox(height: 14),
