@@ -51,7 +51,6 @@ class Channel {
     required this.name,
     required this.category,
     required this.image,
-    required this.live,
     required this.premium,
   });
 
@@ -60,7 +59,6 @@ class Channel {
     name: _str(j['name']),
     category: _str(j['category']),
     image: _str(j['image']),
-    live: _str(j['viewers']),
     premium: j['premium'] == true,
   );
 
@@ -69,9 +67,6 @@ class Channel {
   final String name;
   final String category;
   final String image;
-
-  /// Viewer count label, e.g. "82K".
-  final String live;
   final bool premium;
 }
 
@@ -222,10 +217,10 @@ const _slides = <Slide>[
 ];
 
 const _channels = <Channel>[
-  Channel(name: 'Goal Arena', category: 'Mpira', image: Imagery.field, live: '82K', premium: false),
-  Channel(name: 'Cinema One', category: 'Filamu', image: Imagery.cinema, live: '24K', premium: true),
-  Channel(name: 'Sport Max', category: 'Mpira', image: Imagery.stadium, live: '56K', premium: true),
-  Channel(name: 'Wild Earth', category: 'Wanyama', image: Imagery.lion, live: '11K', premium: false),
-  Channel(name: 'Family Toon', category: 'Katuni', image: Imagery.screen, live: '19K', premium: false),
-  Channel(name: 'Peace TV', category: 'Dini', image: Imagery.screen, live: '8K', premium: false),
+  Channel(name: 'Goal Arena', category: 'Mpira', image: Imagery.field, premium: false),
+  Channel(name: 'Cinema One', category: 'Filamu', image: Imagery.cinema, premium: true),
+  Channel(name: 'Sport Max', category: 'Mpira', image: Imagery.stadium, premium: true),
+  Channel(name: 'Wild Earth', category: 'Wanyama', image: Imagery.lion, premium: false),
+  Channel(name: 'Family Toon', category: 'Katuni', image: Imagery.screen, premium: false),
+  Channel(name: 'Peace TV', category: 'Dini', image: Imagery.screen, premium: false),
 ];

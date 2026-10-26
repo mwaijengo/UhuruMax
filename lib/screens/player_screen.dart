@@ -356,7 +356,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                         const LiveDot(size: 5, ring: false),
                                         const SizedBox(width: 5),
                                         Text(
-                                          'MUBASHARA • ${channel.live} wanatazama',
+                                          'MUBASHARA',
                                           style: uStyle(
                                             9,
                                             color: const Color(0xFFD1D5D3),

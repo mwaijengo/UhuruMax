@@ -60,12 +60,9 @@ class _ChannelFormState extends State<ChannelForm> {
   late final _name = TextEditingController(text: _initial.name);
   late final _category = TextEditingController(text: _initial.category);
   late final _image = TextEditingController(text: _initial.imageUrl);
-  late final _viewers = TextEditingController(text: _initial.viewers);
   late final _sort = TextEditingController(text: '${_initial.sortOrder}');
   late final _stream = TextEditingController(text: _initial.streamUrl);
   late final _clearKeys = TextEditingController(text: _initial.clearKeys);
-  late final _licenseUrl = TextEditingController(text: _initial.licenseUrl);
-  late final _licenseHeaders = TextEditingController(text: headerLines(_initial.licenseHeaders));
   late final _referer = TextEditingController(text: _initial.referer);
   late final _origin = TextEditingController(text: _initial.origin);
   late final _userAgent = TextEditingController(text: _initial.userAgent);
@@ -83,8 +80,8 @@ class _ChannelFormState extends State<ChannelForm> {
   @override
   void dispose() {
     for (final c in [
-      _name, _category, _image, _viewers, _sort, _stream, _clearKeys, _licenseUrl, //
-      _licenseHeaders, _referer, _origin, _userAgent, _headers,
+      _name, _category, _image, _sort, _stream, _clearKeys, //
+      _referer, _origin, _userAgent, _headers,
     ]) {
       c.dispose();
     }
@@ -117,13 +114,13 @@ class _ChannelFormState extends State<ChannelForm> {
       live: _live,
       active: _active,
       sortOrder: int.tryParse(_sort.text.trim()) ?? 0,
-      viewers: _viewers.text.trim(),
       streamUrl: _stream.text.trim(),
       streamType: _streamType,
       drmType: _drm,
       clearKeys: _drm == DrmType.clearkey ? _clearKeys.text.trim() : '',
-      licenseUrl: _drm == DrmType.none ? '' : _licenseUrl.text.trim(),
-      licenseHeaders: _drm == DrmType.none ? {} : parseHeaderLines(_licenseHeaders.text),
+      // No longer editable; kept so older channels that rely on them keep playing.
+      licenseUrl: _drm == DrmType.none ? '' : _initial.licenseUrl,
+      licenseHeaders: _drm == DrmType.none ? {} : _initial.licenseHeaders,
       referer: _referer.text.trim(),
       origin: _origin.text.trim(),
       userAgent: _userAgent.text.trim(),
@@ -214,23 +211,10 @@ class _ChannelFormState extends State<ChannelForm> {
                       const SizedBox(height: 12),
                       ImageField(controller: _image, validator: (v) => _url(v)),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _viewers,
-                              decoration: const InputDecoration(labelText: 'Viewers label', hintText: 'e.g. 24K'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _sort,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(labelText: 'Sort order', helperText: 'Lower shows first'),
-                            ),
-                          ),
-                        ],
+                      TextFormField(
+                        controller: _sort,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Sort order', helperText: 'Lower shows first'),
                       ),
                       const SizedBox(height: 8),
                       SwitchRow(
@@ -406,62 +390,23 @@ class _ChannelFormState extends State<ChannelForm> {
             style: uStyle(13, weight: FontWeight.w600).copyWith(fontFamily: 'monospace'),
             validator: (v) {
               final keys = (v ?? '').trim();
-              if (keys.isEmpty && _licenseUrl.text.trim().isEmpty) {
-                return 'Add keys or a licence URL';
-              }
-              return keys.isEmpty ? null : validateClearKeys(keys);
+              return keys.isEmpty ? 'Add at least one kid:key pair' : validateClearKeys(keys);
             },
             decoration: const InputDecoration(
-              labelText: 'Keys (kid:key)',
+              labelText: 'ClearKey (kid:key)',
               hintText: 'feedf00deedeadbeeff0baadf00dd00d:00112233445566778899aabbccddeeff',
               helperText: 'One pair per line, hex (32 characters) or base64url',
               alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _licenseUrl,
-            validator: (v) => _url(v),
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'ClearKey licence URL (optional)',
-              helperText: 'Use instead of fixed keys when keys come from a server',
-              prefixIcon: Icon(LucideIcons.server, size: 18),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _licenseHeadersField(),
         ];
       case DrmType.widevine:
         return [
-          TextFormField(
-            controller: _licenseUrl,
-            validator: (v) => _url(v, required: true),
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'Widevine licence URL',
-              hintText: 'https://license.example.com/widevine',
-              prefixIcon: Icon(LucideIcons.server, size: 18),
-            ),
+          Text(
+            'The player gets the Widevine licence automatically from the stream.',
+            style: uStyle(12.5, color: AppColors.muted, height: 1.4),
           ),
-          const SizedBox(height: 12),
-          _licenseHeadersField(),
         ];
     }
-  }
-
-  Widget _licenseHeadersField() {
-    return TextFormField(
-      controller: _licenseHeaders,
-      minLines: 1,
-      maxLines: 5,
-      validator: _headerValidator,
-      decoration: const InputDecoration(
-        labelText: 'Licence request headers (optional)',
-        hintText: 'Authorization: Bearer …',
-        helperText: 'One "Name: value" per line',
-        alignLabelWithHint: true,
-      ),
-    );
   }
 }
