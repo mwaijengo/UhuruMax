@@ -199,7 +199,7 @@ class UhuruPlayerPlugin(
 @OptIn(UnstableApi::class)
 class UhuruPlayer(
     context: Context,
-    http: OkHttpClient,
+    private val http: OkHttpClient,
     private val producer: TextureRegistry.SurfaceProducer,
     private val events: EventChannel,
     private val source: PlayerSource,
@@ -216,7 +216,7 @@ class UhuruPlayer(
 
     /** Resolved MIME type (or [PROGRESSIVE]); null while a probe is still running. */
     private var format: String? = null
-    private var triedHlsFallback = false
+    private var triedFallback = false
 
     init {
         // DefaultDataSource adds udp://, content:// and data: on top of OkHttp for http(s).
@@ -288,18 +288,27 @@ class UhuruPlayer(
         val known = when (source.streamType) {
             "hls" -> MimeTypes.APPLICATION_M3U8
             "dash" -> MimeTypes.APPLICATION_MPD
-            "progressive" -> PROGRESSIVE
+            "smooth" -> MimeTypes.APPLICATION_SS
+            "rtsp" -> MimeTypes.APPLICATION_RTSP
+            "ts", "progressive" -> PROGRESSIVE
             else -> formatFromUrl(source.url) ?: detected[source.url]
         }
         if (known != null) {
             load(known)
         } else {
             // Links such as …/live.php or …/stream?id=5 hide the format; ask the server once.
-            sendState()
-            thread(name = "uhuru-probe") {
-                val found = probe(http) ?: PROGRESSIVE
-                handler.post { if (!released) load(found) }
-            }
+            detect(tried = null)
+        }
+    }
+
+    /** Probes the link off the main thread, then loads whatever it found (never [tried] again). */
+    private fun detect(tried: String?) {
+        sendState()
+        thread(name = "uhuru-probe") {
+            val found = probe()?.takeIf { it != tried }
+                ?: if (tried == MimeTypes.APPLICATION_M3U8) PROGRESSIVE else MimeTypes.APPLICATION_M3U8
+            if (tried != null) detected[source.url] = found
+            handler.post { if (!released) load(found) }
         }
     }
 
@@ -316,7 +325,7 @@ class UhuruPlayer(
      * the Content-Type, or the bytes themselves. Shares the player's connection pool,
      * so the real request right after reuses the same connection.
      */
-    private fun probe(http: OkHttpClient): String? = runCatching {
+    private fun probe(): String? = runCatching {
         val request = Request.Builder().url(source.url).apply {
             source.headers.forEach { (name, value) -> header(name, value) }
             if (source.headers.keys.none { it.equals("User-Agent", true) }) header("User-Agent", DEFAULT_USER_AGENT)
@@ -464,13 +473,11 @@ class UhuruPlayer(
             restart()
             return
         }
-        // No container matched: an extension-less link is most often an HLS playlist.
-        if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED &&
-            source.streamType == "auto" && format == PROGRESSIVE && !triedHlsFallback
-        ) {
-            triedHlsFallback = true
-            detected[source.url] = MimeTypes.APPLICATION_M3U8
-            load(MimeTypes.APPLICATION_M3U8)
+        // The link is not the chosen or guessed format (e.g. admin picked HLS for a TS link).
+        if (error.errorCode in FORMAT_ERRORS && !triedFallback) {
+            triedFallback = true
+            detected.remove(source.url)
+            detect(tried = format)
             return
         }
         if (error.errorCode in RECOVERABLE && autoRetries < AUTO_RETRIES) {
@@ -575,6 +582,12 @@ class UhuruPlayer(
                 else -> PROGRESSIVE
             }
         }
+
+        private val FORMAT_ERRORS = setOf(
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
+        )
 
         private val RECOVERABLE = setOf(
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,

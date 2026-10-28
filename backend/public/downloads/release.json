@@ -1,21 +1,21 @@
 {
-  "version": "1.0.1",
-  "updatedAt": "2026-10-28T06:45:03.642Z",
+  "version": "1.0.2",
+  "updatedAt": "2026-10-28T07:12:44.028Z",
   "minAndroid": "7.0",
   "notes": [
+    "Inacheza link za aina zote: .php, .m3u8, .mpd, .ts, .mp4 na rtsp",
+    "Kicheza video kinatambua aina ya link chenyewe",
     "Chaneli zenye link za .php sasa zinacheza",
-    "Kicheza video kinaanza haraka zaidi",
-    "Ujumbe wa hitilafu unasomeka vizuri",
-    "Inafanya kazi vizuri kwenye simu mpya za Android"
+    "Ujumbe wa hitilafu unasomeka vizuri"
   ],
   "files": {
     "arm64": {
       "file": "/downloads/UhuruMax.apk",
-      "sizeBytes": 21994668
+      "sizeBytes": 21994672
     },
     "armv7": {
       "file": "/downloads/UhuruMax-armv7.apk",
-      "sizeBytes": 19419768
+      "sizeBytes": 19419772
     }
   }
 }

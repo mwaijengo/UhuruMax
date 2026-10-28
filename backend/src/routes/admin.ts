@@ -110,7 +110,7 @@ const channelBody = z
     sortOrder: z.number().int().default(0),
     viewers: z.string().trim().max(12).default(''),
     streamUrl: z.string().trim().url(),
-    streamType: z.enum(['auto', 'hls', 'dash', 'progressive']).default('auto'),
+    streamType: z.enum(['auto', 'hls', 'dash', 'ts', 'smooth', 'rtsp', 'progressive']).default('auto'),
     drmType: z.enum(['none', 'clearkey', 'widevine']).default('none'),
     clearKeys: z.string().trim().default(''),
     licenseUrl: z.string().trim().url().or(z.literal('')).default(''),

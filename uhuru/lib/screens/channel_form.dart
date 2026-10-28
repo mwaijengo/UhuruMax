@@ -272,10 +272,17 @@ class _ChannelFormState extends State<ChannelForm> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<StreamType>(
                         initialValue: _streamType,
+                        isExpanded: true,
                         dropdownColor: AppColors.surface2,
-                        decoration: const InputDecoration(labelText: 'Stream type', prefixIcon: Icon(LucideIcons.radio, size: 18)),
+                        decoration: const InputDecoration(
+                          labelText: 'Stream type',
+                          helperText: 'Keep "Auto" for any link. If a chosen type is wrong, the app finds the right one.',
+                          helperMaxLines: 2,
+                          prefixIcon: Icon(LucideIcons.radio, size: 18),
+                        ),
                         items: [
-                          for (final t in StreamType.values) DropdownMenuItem(value: t, child: Text(t.label)),
+                          for (final t in StreamType.values)
+                            DropdownMenuItem(value: t, child: Text(t.label, overflow: TextOverflow.ellipsis)),
                         ],
                         onChanged: (t) => setState(() => _streamType = t ?? StreamType.auto),
                       ),
@@ -293,10 +300,7 @@ class _ChannelFormState extends State<ChannelForm> {
                         ],
                         selected: {_drm},
                         showSelectedIcon: false,
-                        onSelectionChanged: (s) => setState(() {
-                          _drm = s.first;
-                          if (_drm != DrmType.none && _streamType == StreamType.auto) _streamType = StreamType.dash;
-                        }),
+                        onSelectionChanged: (s) => setState(() => _drm = s.first),
                       ),
                       const SizedBox(height: 12),
                       ..._drmFields(),
