@@ -100,6 +100,20 @@ class _ChannelFormState extends State<ChannelForm> {
     return null;
   }
 
+  static const _streamSchemes = {'http', 'https', 'rtsp', 'udp'};
+
+  /// Any playable link: http(s) (including .php or extension-less), rtsp, udp.
+  /// Headers after a `|` are allowed and ignored here.
+  String? _streamUrl(String? v) {
+    final s = (v ?? '').trim();
+    if (s.isEmpty) return 'Required';
+    final uri = Uri.tryParse(s.split('|').first.trim());
+    if (uri == null || !_streamSchemes.contains(uri.scheme.toLowerCase()) || uri.host.isEmpty) {
+      return 'Enter a full link (http, https, rtsp or udp)';
+    }
+    return null;
+  }
+
   Future<void> _save() async {
     if (!_form.currentState!.validate()) {
       toast(context, 'Check the highlighted fields', error: true);
@@ -243,14 +257,15 @@ class _ChannelFormState extends State<ChannelForm> {
                     children: [
                       TextFormField(
                         controller: _stream,
-                        validator: (v) => _url(v, required: true),
+                        validator: _streamUrl,
                         keyboardType: TextInputType.url,
                         maxLines: null,
                         decoration: const InputDecoration(
                           labelText: 'Stream URL',
-                          hintText: 'https://…/index.m3u8 or …/manifest.mpd',
-                          helperText: 'Headers can also follow the link: …m3u8|User-Agent=VLC&Referer=https://site/',
-                          helperMaxLines: 2,
+                          hintText: 'https://…/index.m3u8, …/live.php, rtsp://…',
+                          helperText: 'Any link works: m3u8, mpd, php, mp4, ts, rtsp. With "Auto" the app '
+                              'detects the format. Headers can follow the link: …|User-Agent=VLC&Referer=https://site/',
+                          helperMaxLines: 3,
                           prefixIcon: Icon(LucideIcons.link, size: 18),
                         ),
                       ),

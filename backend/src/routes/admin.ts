@@ -121,9 +121,6 @@ const channelBody = z
     headers: headerMap,
   })
   .superRefine((c, ctx) => {
-    if (c.drmType === 'widevine' && !c.licenseUrl) {
-      ctx.addIssue({ code: 'custom', path: ['licenseUrl'], message: 'Widevine needs a license URL' });
-    }
     if (c.drmType === 'clearkey' && !c.clearKeys && !c.licenseUrl) {
       ctx.addIssue({
         code: 'custom',

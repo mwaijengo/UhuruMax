@@ -1,6 +1,7 @@
 package com.uhurumax
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
@@ -14,6 +15,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -38,10 +40,13 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.TextureRegistry
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLDecoder
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /** What the server's `/playback` endpoint returns, as sent from Dart. */
 data class PlayerSource(
@@ -209,8 +214,13 @@ class UhuruPlayer(
     private var attachedSurface: Surface? = null
     private var released = false
 
+    /** Resolved MIME type (or [PROGRESSIVE]); null while a probe is still running. */
+    private var format: String? = null
+    private var triedHlsFallback = false
+
     init {
-        val streamData = dataSource(http, source.headers)
+        // DefaultDataSource adds udp://, content:// and data: on top of OkHttp for http(s).
+        val streamData = DefaultDataSource.Factory(context, dataSource(http, source.headers))
         val mediaSources = DefaultMediaSourceFactory(context)
             .setDataSourceFactory(streamData)
             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(LOAD_RETRIES))
@@ -274,32 +284,66 @@ class UhuruPlayer(
         producer.setSize(surfaceWidth, surfaceHeight)
         attachSurface()
 
-        player.setMediaItem(mediaItem())
         player.playWhenReady = true
+        val known = when (source.streamType) {
+            "hls" -> MimeTypes.APPLICATION_M3U8
+            "dash" -> MimeTypes.APPLICATION_MPD
+            "progressive" -> PROGRESSIVE
+            else -> formatFromUrl(source.url) ?: detected[source.url]
+        }
+        if (known != null) {
+            load(known)
+        } else {
+            // Links such as …/live.php or …/stream?id=5 hide the format; ask the server once.
+            sendState()
+            thread(name = "uhuru-probe") {
+                val found = probe(http) ?: PROGRESSIVE
+                handler.post { if (!released) load(found) }
+            }
+        }
+    }
+
+    private fun load(format: String) {
+        this.format = format
+        val builder = MediaItem.Builder().setUri(source.url)
+        if (format != PROGRESSIVE) builder.setMimeType(format)
+        player.setMediaItem(builder.build())
         player.prepare()
     }
 
-    private fun mediaItem(): MediaItem {
-        val builder = MediaItem.Builder().setUri(source.url)
-        val path = source.url.substringBefore('?').lowercase()
-        val mime = when (source.streamType) {
-            "hls" -> MimeTypes.APPLICATION_M3U8
-            "dash" -> MimeTypes.APPLICATION_MPD
-            "progressive" -> null
-            else -> when {
-                path.endsWith(".m3u8") || path.contains(".m3u8") -> MimeTypes.APPLICATION_M3U8
-                path.endsWith(".mpd") -> MimeTypes.APPLICATION_MPD
-                else -> null
+    /**
+     * Fetches the first few KB (following redirects) and decides from the final URL,
+     * the Content-Type, or the bytes themselves. Shares the player's connection pool,
+     * so the real request right after reuses the same connection.
+     */
+    private fun probe(http: OkHttpClient): String? = runCatching {
+        val request = Request.Builder().url(source.url).apply {
+            source.headers.forEach { (name, value) -> header(name, value) }
+            if (source.headers.keys.none { it.equals("User-Agent", true) }) header("User-Agent", DEFAULT_USER_AGENT)
+            header("Range", "bytes=0-4095")
+        }.build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@runCatching null
+            formatFromUrl(response.request.url.toString())?.let { return@runCatching it }
+            val type = response.header("Content-Type").orEmpty().lowercase()
+            formatFromContentType(type)?.let { return@runCatching it }
+            val head = ByteArray(4096)
+            var read = 0
+            response.body?.byteStream()?.let { input ->
+                while (read < head.size) {
+                    val n = input.read(head, read, head.size - read)
+                    if (n <= 0) break
+                    read += n
+                }
             }
+            formatFromBytes(head, read)
         }
-        mime?.let { builder.setMimeType(it) }
-        return builder.build()
-    }
+    }.getOrNull()?.also { detected[source.url] = it }
 
     private fun dataSource(http: OkHttpClient, headers: Map<String, String>): OkHttpDataSource.Factory {
         val factory = OkHttpDataSource.Factory(http)
         val userAgent = headers.entries.firstOrNull { it.key.equals("User-Agent", ignoreCase = true) }?.value
-        factory.setUserAgent(userAgent ?: "UhuruMax/1.0 (Linux; Android) ExoPlayer")
+        factory.setUserAgent(userAgent ?: DEFAULT_USER_AGENT)
         factory.setDefaultRequestProperties(headers.filterKeys { !it.equals("User-Agent", ignoreCase = true) })
         return factory
     }
@@ -335,6 +379,10 @@ class UhuruPlayer(
     }
 
     fun play() {
+        if (format == null) {
+            player.playWhenReady = true
+            return
+        }
         if (player.playbackState == Player.STATE_IDLE) player.prepare()
         player.play()
     }
@@ -354,7 +402,7 @@ class UhuruPlayer(
     }
 
     private fun restart() {
-        if (released) return
+        if (released || format == null) return
         player.seekToDefaultPosition()
         player.prepare()
         player.play()
@@ -416,6 +464,15 @@ class UhuruPlayer(
             restart()
             return
         }
+        // No container matched: an extension-less link is most often an HLS playlist.
+        if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED &&
+            source.streamType == "auto" && format == PROGRESSIVE && !triedHlsFallback
+        ) {
+            triedHlsFallback = true
+            detected[source.url] = MimeTypes.APPLICATION_M3U8
+            load(MimeTypes.APPLICATION_M3U8)
+            return
+        }
         if (error.errorCode in RECOVERABLE && autoRetries < AUTO_RETRIES) {
             autoRetries++
             sendState()
@@ -474,6 +531,50 @@ class UhuruPlayer(
     companion object {
         private const val LOAD_RETRIES = 6
         private const val AUTO_RETRIES = 3
+        private const val DEFAULT_USER_AGENT = "UhuruMax/1.0 (Linux; Android) ExoPlayer"
+        private const val PROGRESSIVE = "progressive"
+
+        /** Formats found by probing, so reopening a channel skips the probe. */
+        private val detected = ConcurrentHashMap<String, String>()
+
+        private val progressiveExtensions = setOf(
+            "mp4", "m4v", "m4a", "mkv", "webm", "mov", "3gp", "ts", "mts", "flv", "mp3", "aac", "ogg", "wav",
+        )
+
+        fun formatFromUrl(url: String): String? {
+            when (Uri.parse(url).scheme?.lowercase()) {
+                "rtsp" -> return MimeTypes.APPLICATION_RTSP
+                "udp" -> return PROGRESSIVE
+            }
+            val path = url.substringBefore('#').substringBefore('?').lowercase()
+            val extension = path.substringAfterLast('/').substringAfterLast('.', "")
+            return when {
+                extension == "m3u8" || extension == "m3u" || path.contains(".m3u8") -> MimeTypes.APPLICATION_M3U8
+                extension == "mpd" || path.contains(".mpd") -> MimeTypes.APPLICATION_MPD
+                extension == "ism" || extension == "isml" || path.contains(".ism/") -> MimeTypes.APPLICATION_SS
+                extension in progressiveExtensions -> PROGRESSIVE
+                else -> null
+            }
+        }
+
+        fun formatFromContentType(type: String): String? = when {
+            "mpegurl" in type -> MimeTypes.APPLICATION_M3U8
+            "dash+xml" in type -> MimeTypes.APPLICATION_MPD
+            "vnd.ms-sstr" in type -> MimeTypes.APPLICATION_SS
+            type.startsWith("video/") || type.startsWith("audio/") -> PROGRESSIVE
+            else -> null
+        }
+
+        fun formatFromBytes(bytes: ByteArray, length: Int): String {
+            if (length > 0 && bytes[0] == 0x47.toByte()) return PROGRESSIVE
+            val text = String(bytes, 0, length, Charsets.UTF_8).trimStart('\uFEFF', ' ', '\n', '\r', '\t')
+            return when {
+                text.startsWith("#EXTM3U") || text.contains("#EXT-X-") -> MimeTypes.APPLICATION_M3U8
+                text.contains("<MPD") -> MimeTypes.APPLICATION_MPD
+                text.contains("<SmoothStreamingMedia") -> MimeTypes.APPLICATION_SS
+                else -> PROGRESSIVE
+            }
+        }
 
         private val RECOVERABLE = setOf(
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
