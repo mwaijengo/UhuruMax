@@ -1,21 +1,21 @@
 {
-  "version": "1.0.0",
-  "updatedAt": "2026-10-25T04:54:10.433Z",
+  "version": "1.0.1",
+  "updatedAt": "2026-10-28T06:45:03.642Z",
   "minAndroid": "7.0",
   "notes": [
-    "Chaneli zote sasa zinaonekana kwenye Zote",
-    "Kicheza video kipya: kinaanza haraka na hakikwami",
-    "Skrini nzima ya mlalo bila nafasi pembeni",
-    "Arifa za mechi na vifurushi zinafika haraka zaidi"
+    "Chaneli zenye link za .php sasa zinacheza",
+    "Kicheza video kinaanza haraka zaidi",
+    "Ujumbe wa hitilafu unasomeka vizuri",
+    "Inafanya kazi vizuri kwenye simu mpya za Android"
   ],
   "files": {
     "arm64": {
       "file": "/downloads/UhuruMax.apk",
-      "sizeBytes": 21945516
+      "sizeBytes": 21994668
     },
     "armv7": {
       "file": "/downloads/UhuruMax-armv7.apk",
-      "sizeBytes": 19370616
+      "sizeBytes": 19419768
     }
   }
 }

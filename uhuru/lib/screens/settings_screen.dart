@@ -264,7 +264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         maxLines: 2,
                         decoration: const InputDecoration(
                           labelText: 'Update message',
-                          hintText: 'Toleo jipya lipo. Sasisha upate maboresho.',
+                          hintText: 'Kuna toleo jipya. Download sasa upate maboresho.',
                         ),
                       ),
                       const SizedBox(height: 12),

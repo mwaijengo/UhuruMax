@@ -155,7 +155,7 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
     latestVersion: '1.0.0',
     minVersion: '1.0.0',
     force: false,
-    message: 'Toleo jipya la UhuruMax lipo. Sasisha sasa upate maboresho mapya.',
+    message: 'Kuna toleo jipya la UhuruMax. Download sasa upate maboresho mapya.',
     url: '',
   },
   refresh: { token: 0 },

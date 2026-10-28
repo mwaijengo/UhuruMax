@@ -154,7 +154,7 @@ void main() {
     final old = await loadOnline(server, appVersion: '1.1.9');
     expect(old.updateRequired, isTrue);
     await pumpApp(tester, old);
-    expect(find.text('Sasisha UhuruMax'), findsOneWidget);
+    expect(find.text('Kuna toleo jipya'), findsOneWidget);
     old.dispose();
 
     SharedPreferences.setMockInitialValues({});

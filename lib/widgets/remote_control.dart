@@ -74,7 +74,7 @@ class _RemoteControlState extends State<RemoteControl> with WidgetsBindingObserv
         backgroundColor: AppColors.sheet,
         title: Text('Toleo jipya ${state.config.latestVersion}', style: uStyle(17, weight: FontWeight.w700)),
         content: Text(
-          message.isEmpty ? 'Kuna maboresho mapya ya UhuruMax. Sasisha sasa upate huduma bora.' : message,
+          message.isEmpty ? 'Kuna toleo jipya la UhuruMax. Download sasa upate huduma bora.' : message,
           style: uStyle(12, color: AppColors.muted, height: 1.6),
         ),
         actions: [
@@ -87,7 +87,7 @@ class _RemoteControlState extends State<RemoteControl> with WidgetsBindingObserv
               Navigator.of(dialogContext).pop();
               _openUpdate(state);
             },
-            child: Text('Sasisha', style: uStyle(12, weight: FontWeight.w700, color: AppColors.green)),
+            child: Text('Download sasa', style: uStyle(12, weight: FontWeight.w700, color: AppColors.green)),
           ),
         ],
       ),
@@ -104,7 +104,7 @@ class _RemoteControlState extends State<RemoteControl> with WidgetsBindingObserv
         opened = false;
       }
     }
-    if (!opened && mounted) showAppToast(context, 'Imeshindikana kufungua kiungo cha kusasisha');
+    if (!opened && mounted) showAppToast(context, 'Imeshindikana kufungua kiungo cha kudownload');
   }
 
   Future<void> _openWhatsApp(AppState state) async {
@@ -132,11 +132,11 @@ class _RemoteControlState extends State<RemoteControl> with WidgetsBindingObserv
       final message = state.config.updateMessage;
       return StatusScreen(
         icon: LucideIcons.download,
-        title: 'Sasisha UhuruMax',
+        title: 'Kuna toleo jipya',
         message: message.isEmpty
-            ? 'Toleo hili halitumiki tena. Pakua toleo jipya ili uendelee kutazama.'
+            ? 'Toleo hili halitumiki tena. Download toleo jipya ili uendelee kutazama.'
             : message,
-        action: 'Sasisha sasa',
+        action: 'Download sasa',
         onAction: () => _openUpdate(state),
       );
     }
