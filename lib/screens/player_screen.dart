@@ -555,38 +555,45 @@ class _PlayerScreenState extends State<PlayerScreen>
                   ),
                 ),
               if (_error != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 340),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _needsPayment
-                                ? LucideIcons.crown
-                                : LucideIcons.triangleAlert,
-                            size: 34,
-                            color: _needsPayment
-                                ? AppColors.green
-                                : const Color(0xFFFF5A52),
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: const Color(0xD9000000),
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 340),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _needsPayment
+                                    ? LucideIcons.crown
+                                    : LucideIcons.triangleAlert,
+                                size: 34,
+                                color: _needsPayment
+                                    ? AppColors.green
+                                    : const Color(0xFFFF5A52),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _error!,
+                                textAlign: TextAlign.center,
+                                style: uStyle(12, height: 1.6),
+                              ),
+                              const SizedBox(height: 16),
+                              AppButton(
+                                label: _needsPayment
+                                    ? 'Lipia sasa'
+                                    : 'Jaribu tena',
+                                icon: _needsPayment
+                                    ? LucideIcons.crown
+                                    : LucideIcons.refreshCw,
+                                onTap: _onErrorAction,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: uStyle(12, height: 1.6),
-                          ),
-                          const SizedBox(height: 16),
-                          AppButton(
-                            label: _needsPayment ? 'Lipia sasa' : 'Jaribu tena',
-                            icon: _needsPayment
-                                ? LucideIcons.crown
-                                : LucideIcons.refreshCw,
-                            onTap: _onErrorAction,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
